@@ -7,7 +7,7 @@ import TextWindow from "./TextWindow"
 
 class App extends Component {
   render() {
-    return <TextWindow width="300px" height="200px" backgroundColor="magenta" cursorColor="green" cursorMode="block" fontColor="black" />
+    return <TextWindow width="300px" height="200px" backgroundColor="white" cursorColor="green" cursorMode="block" fontColor="black" />
   }
 }
 

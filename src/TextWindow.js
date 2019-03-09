@@ -9,6 +9,18 @@ class Char {
 }
 
 class TextWindow extends Component {
+    defaultMoveLeft() {
+        this.setCursorPosition(this.cursorPosition - 1);
+    }
+    defaultMoveRight() {
+        this.setCursorPosition(this.cursorPosition + 1)
+    }
+    defaultMoveUp() {
+
+    }
+    setupKeyBindingHandlers() {
+
+    }
     constructor (props) {
         super(props);
         this.state = {
@@ -20,8 +32,11 @@ class TextWindow extends Component {
             currentCursorColor: this.props.cursorColor,
             cursorPosition: null,
             cursorMode: this.props.cursorMode,
+            editorMode: "Insert",
             windowText: []
         }
+        this.keyBindingMap = {}
+        this.setupKeyBindingHandlers()
     }
     drawCursor() {
         // set the span of the current cursor position
@@ -76,6 +91,7 @@ class TextWindow extends Component {
     }
 
     setCursorPosition(pos) {
+        if (pos < 0) return
         this.setState({cursorPosition: pos})
     }
 
@@ -123,15 +139,22 @@ class TextWindow extends Component {
             this.insertTextAfterPosition(this.state.cursorPosition, c)
             this.setCursorPosition(this.state.cursorPosition + 1);
         }
-        this.drawCursor()
+        //this.drawCursor()
     }
+
+    createCursor(style, text) {
+        return <span id="cursor">{text}</span>
+    }
+
     render() {
         const style = {
             width: this.state.width,
             height: this.state.height,
             backgroundColor: this.state.backgroundColor
         }
-        var displayElems = this.state.windowText.map(elem => {
+        console.log("rend")
+        var pos = this.state.cursorPosition
+        var displayElems = this.state.windowText.map((elem, idx) => {
             if (elem.text !== null) {
                 return this.createCharSpan(elem.style, elem.text)
             }
@@ -142,7 +165,7 @@ class TextWindow extends Component {
                 return null
             }
         })
-
+        displayElems.splice(pos, 0, this.createCursor(null, "|"))
         return <div id="editorWindow" onKeyDown={event => this.onKeyDownHandler(event)} tabIndex={-1} onBlur={event => this.onBlurHandler(event)} onFocus={event => this.onFocusHandler(event)} style={style}>
         {displayElems}
         </div>
