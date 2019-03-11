@@ -13,6 +13,14 @@ code {
     monospace;
 }
 #cursor {
-    background-color: green;
-    color: green;
+    background-color: white;
+    display: inline-block;
+    color: white;
+    width: 1px;
+    animation: blinkingCursor 0.8s infinite;
+}
+
+@keyframes blinkingCursor {
+    50%{color: white; background-color: white}
+    100% {color: transparent; background-color: transparent;}
 }

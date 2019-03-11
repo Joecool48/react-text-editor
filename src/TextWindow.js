@@ -1,25 +1,69 @@
 import React, { Component } from 'react';
 
 class Char {
-    constructor(style, text) {
+    constructor(style, text, sp) {
         this.style = style
         this.text = text
-        this.special = null
+        this.special = sp
     }
 }
 
+function findFromStart(arr, start, step, func) {
+    for (var i = start; i >= 0 && i < arr.length; i += step) {
+        if (func(arr[i])) return i
+    }
+    return undefined
+}
+
+const INSERT_MODE = "Insert"
+const NORMAL_MODE = "Normal"
+
 class TextWindow extends Component {
-    defaultMoveLeft() {
+    defaultMoveLeft(event) {
         this.setCursorPosition(this.cursorPosition - 1);
     }
-    defaultMoveRight() {
+    defaultMoveRight(event) {
         this.setCursorPosition(this.cursorPosition + 1)
     }
-    defaultMoveUp() {
+    defaultMoveUp(event) {
+        // find the last index of newline
+        var idxLast = findFromStart(this.state.windowText, this.state.cursorPosition - 1, -1, function (elem) {
+            if (elem.text === "Enter") return true
+            return false
+        })
 
+        // no more lines in the array
+        if (idxLast === undefined) return
+
+        var idxLast2 = findFromStart(this.state.windowText, idxLast - 1, -1, function (elem) {
+            if (elem.text === "Enter") return true
+            return false
+        })
+        if (idxLast2 === undefined) idxLast2 = 0
+        var dist = this.state.cursorPosition - idxLast
+        var offset = idxLast2 + dist
+        if (offset > idxLast) this.setCursorPosition(idxLast)
+        else this.setCursorPosition(offset)
     }
-    setupKeyBindingHandlers() {
+    defaultMoveDown(event) {
+      // find the last index of newline
+      var idxLast = findFromStart(this.state.windowText, this.state.cursorPosition - 1, -1, function (elem) {
+          if (elem.text === "Enter") return true
+          return false
+      })
+      console.log(idxLast)
+      // no more lines in the array
+      if (idxLast === undefined) idxLast = 0
 
+      var idxLast2 = findFromStart(this.state.windowText, idxLast + 1, 1, function (elem) {
+          if (elem.text === "Enter") return true
+          return false
+      })
+      if (idxLast2 === undefined) return
+      console.log(idxLast2)
+      var dist = this.state.cursorPosition - idxLast
+      var offset = idxLast2 + dist
+      this.setCursorPosition(offset)
     }
     constructor (props) {
         super(props);
@@ -32,27 +76,30 @@ class TextWindow extends Component {
             currentCursorColor: this.props.cursorColor,
             cursorPosition: null,
             cursorMode: this.props.cursorMode,
-            editorMode: "Insert",
+            editorMode: INSERT_MODE,
             windowText: []
         }
-        this.keyBindingMap = {}
-        this.setupKeyBindingHandlers()
-    }
-    drawCursor() {
-        // set the span of the current cursor position
-        if (this.state.cursorMode === "block") {
-            const newText = this.state.windowText.slice(0)
-            var i
-            for (i = 0; i < newText.length; i += 1) {
-                if (i === this.state.cursorPosition) {
-                    newText[i].style.backgroundColor = "green"
-                }
-                else {
-                    newText[i].style.backgroundColor = this.state.backgroundColor
-                }
+
+        // set up the handlers
+
+        this.keyBindingMap = {
+            NORMAL_MODE: {
+                'h': this.defaultMoveLeft,
+                'l': this.defaultMoveRight,
+                'j': this.defaultMoveDown,
+                'k': this.defaultMoveUp,
+                'gg': this.gotToFirstLine,
+                'G': this.goToLastLine,
+                'w': this.jumpForwardStartWord,
+                'e': this.jumpforwardEndWord,
+                'b': this.jumpBackStartWord,
+                '0': this.jumpStartLine,
+                '$': this.jumpEndLine,
+                'a': this.appendToCursor,
+                'i': this.enterInsertMode,
             }
-            this.setState({windowText: newText})
         }
+
     }
 
     createCharSpan(style, key) {
@@ -83,10 +130,11 @@ class TextWindow extends Component {
         if (this.state.cursorPosition === null) {
             this.setState({cursorPosition: 0})
         }
+        this.setState({shouldDrawCursor: true})
         console.log("Focus received")
     }
     onBlurHandler(event) {
-
+        this.setState({shouldDrawCursor: false})
         console.log("Focus unreceived")
     }
 
@@ -108,38 +156,46 @@ class TextWindow extends Component {
           return valid
     }
     onKeyDownHandler(event) {
-        if (this.canDisplayChar(event) && event.shiftKey) {
-            this.addTextAtPosition(this.state.cursorPosition, new Char({color: this.state.fontColor}, event.key.toUpperCase()))
-            this.setCursorPosition(this.state.cursorPosition + 1);
-        }
-        else if (event.key === "Enter") {
-            // add a break to simulate a return
-            var c = new Char({}, null)
-            c.special = "Enter"
-            this.addTextAtPosition(this.state.cursorPosition, c)
-            this.setCursorPosition(this.state.cursorPosition + 1);
-        }
-        else if (event.key === "Backspace") {
-            if (this.state.cursorPosition === 0) return
-            this.removeTextAtPosition(this.state.cursorPosition - 1)
-            this.setCursorPosition(this.state.cursorPosition - 1)
-        }
-        /* Arrow keys */
-        else if (event.key === "ArrowLeft") {
-            if (this.state.cursorPosition === 0) return
-            this.setCursorPosition(this.state.cursorPosition - 1);
-        }
-        else if (event.key === "ArrowRight") {
-            if (this.state.cursorPosition >= this.state.windowText.length) return
-            this.setCursorPosition(this.state.cursorPosition + 1)
-        }
-        else if (this.canDisplayChar(event)){
-            var c = new Char({}, event.key)
+        if (this.state.editorMode === INSERT_MODE) {
+            if (this.canDisplayChar(event) && event.shiftKey) {
+                this.addTextAtPosition(this.state.cursorPosition, new Char({color: this.state.fontColor}, event.key.toUpperCase()), false)
+                this.setCursorPosition(this.state.cursorPosition + 1);
+            }
+            else if (event.key === "Enter") {
+                // add a break to simulate a return
+                var c = new Char({}, event.key, true)
+                this.addTextAtPosition(this.state.cursorPosition, c)
+                this.setCursorPosition(this.state.cursorPosition + 1);
+            }
+            else if (event.key === "Backspace") {
+                if (this.state.cursorPosition === 0) return
+                this.removeTextAtPosition(this.state.cursorPosition - 1)
+                this.setCursorPosition(this.state.cursorPosition - 1)
+            }
+            /* Arrow keys */
+            else if (event.key === "ArrowLeft") {
+                if (this.state.cursorPosition === 0) return
+                this.setCursorPosition(this.state.cursorPosition - 1);
+            }
+            else if (event.key === "ArrowRight") {
+                if (this.state.cursorPosition >= this.state.windowText.length) return
+                this.setCursorPosition(this.state.cursorPosition + 1)
+            }
+            else if (event.key === "ArrowUp") {
+                console.log("Up pressed")
+                this.defaultMoveUp(event);
+            }
+            else if (event.key === "ArrowDown") {
+                console.log("Down pressed")
+                this.defaultMoveDown(event)
+            }
+            else if (this.canDisplayChar(event)){
+                var c = new Char({}, event.key, false)
 
-            this.insertTextAfterPosition(this.state.cursorPosition, c)
-            this.setCursorPosition(this.state.cursorPosition + 1);
+                this.insertTextAfterPosition(this.state.cursorPosition, c)
+                this.setCursorPosition(this.state.cursorPosition + 1);
+            }
         }
-        //this.drawCursor()
     }
 
     createCursor(style, text) {
@@ -155,17 +211,19 @@ class TextWindow extends Component {
         console.log("rend")
         var pos = this.state.cursorPosition
         var displayElems = this.state.windowText.map((elem, idx) => {
-            if (elem.text !== null) {
+            if (!elem.special) {
                 return this.createCharSpan(elem.style, elem.text)
             }
-            else if (elem.special === "Enter") {
+            else if (elem.special && elem.text === "Enter") {
                 return <br/>
             }
             else {
                 return null
             }
         })
-        displayElems.splice(pos, 0, this.createCursor(null, "|"))
+        // only draw the cursor if in the frame
+        if (this.state.shouldDrawCursor)
+            displayElems.splice(pos, 0, this.createCursor(null, "|"))
         return <div id="editorWindow" onKeyDown={event => this.onKeyDownHandler(event)} tabIndex={-1} onBlur={event => this.onBlurHandler(event)} onFocus={event => this.onFocusHandler(event)} style={style}>
         {displayElems}
         </div>
