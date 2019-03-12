@@ -115,7 +115,7 @@ class TextWindow extends Component {
     insertTextAfterPosition(position, elem) {
         var arrClone = this.state.windowText.slice(0)
         if (position >= this.state.windowText.length) arrClone.push(elem)
-        else arrClone = arrClone.splice(position, 0, elem)
+        else arrClone.splice(position, 0, elem)
         this.setState({windowText: arrClone})
     }
     removeTextAtPosition(position) {
@@ -123,7 +123,7 @@ class TextWindow extends Component {
         var arrClone = this.state.windowText.slice(0)
         if (position >= this.state.windowText.length) return
         if (position === this.state.windowText.length - 1) arrClone.pop()
-        else arrClone = arrClone.splice(position)
+        else arrClone.splice(position, 1)
         this.setState({windowText: arrClone})
     }
     onFocusHandler(event) {
@@ -158,13 +158,13 @@ class TextWindow extends Component {
     onKeyDownHandler(event) {
         if (this.state.editorMode === INSERT_MODE) {
             if (this.canDisplayChar(event) && event.shiftKey) {
-                this.addTextAtPosition(this.state.cursorPosition, new Char({color: this.state.fontColor}, event.key.toUpperCase()), false)
+                this.insertTextAfterPosition(this.state.cursorPosition, new Char({color: this.state.fontColor}, event.key.toUpperCase()), false)
                 this.setCursorPosition(this.state.cursorPosition + 1);
             }
             else if (event.key === "Enter") {
                 // add a break to simulate a return
                 var c = new Char({}, event.key, true)
-                this.addTextAtPosition(this.state.cursorPosition, c)
+                this.insertTextAfterPosition(this.state.cursorPosition, c)
                 this.setCursorPosition(this.state.cursorPosition + 1);
             }
             else if (event.key === "Backspace") {
@@ -172,29 +172,30 @@ class TextWindow extends Component {
                 this.removeTextAtPosition(this.state.cursorPosition - 1)
                 this.setCursorPosition(this.state.cursorPosition - 1)
             }
-            /* Arrow keys */
-            else if (event.key === "ArrowLeft") {
-                if (this.state.cursorPosition === 0) return
-                this.setCursorPosition(this.state.cursorPosition - 1);
-            }
-            else if (event.key === "ArrowRight") {
-                if (this.state.cursorPosition >= this.state.windowText.length) return
-                this.setCursorPosition(this.state.cursorPosition + 1)
-            }
-            else if (event.key === "ArrowUp") {
-                console.log("Up pressed")
-                this.defaultMoveUp(event);
-            }
-            else if (event.key === "ArrowDown") {
-                console.log("Down pressed")
-                this.defaultMoveDown(event)
-            }
             else if (this.canDisplayChar(event)){
                 var c = new Char({}, event.key, false)
 
                 this.insertTextAfterPosition(this.state.cursorPosition, c)
                 this.setCursorPosition(this.state.cursorPosition + 1);
             }
+        }
+
+        /* Arrow keys */
+        if (event.key === "ArrowLeft") {
+            if (this.state.cursorPosition === 0) return
+            this.setCursorPosition(this.state.cursorPosition - 1);
+        }
+        else if (event.key === "ArrowRight") {
+            if (this.state.cursorPosition >= this.state.windowText.length) return
+            this.setCursorPosition(this.state.cursorPosition + 1)
+        }
+        else if (event.key === "ArrowUp") {
+            console.log("Up pressed")
+            this.defaultMoveUp(event);
+        }
+        else if (event.key === "ArrowDown") {
+            console.log("Down pressed")
+            this.defaultMoveDown(event)
         }
     }
 
