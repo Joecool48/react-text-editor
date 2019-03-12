@@ -20,10 +20,45 @@ function findFromStart(arr, start, step, func) {
     return undefined
 }
 
+function abs(a) {
+    return a > 0 ? a : -a
+}
+
 const INSERT_MODE = "Insert"
 const NORMAL_MODE = "Normal"
 
 class TextWindow extends Component {
+
+    // Takes in a position and a set and finds the value right before and value right after pos
+    findPrevLineBreak(set, pos) {
+        var minIdx = undefined
+        var dist = pos
+        console.log(set)
+        var arr = Array.from(set)
+        for (var i = 0; i < arr.length; i++) {
+            console.log(arr[i])
+            if (arr[i] <= pos && pos - arr[i] < dist) {
+                dist = (pos - arr[i])
+                minIdx = arr[i]
+            }
+        }
+        return minIdx
+    }
+    findNextLineBreak(set, pos) {
+      console.log("Position:", pos)
+        var maxIdx = undefined
+        var dist = pos
+        var arr = Array.from(set)
+        for (var i = 0; i < arr.length; i++) {
+            if (arr[i] >= pos && abs(pos - arr[i]) < dist) {
+                dist = abs(pos - arr[i])
+                maxIdx = arr[i]
+            }
+        }
+        console.log("Next break: ", maxIdx)
+        return maxIdx
+    }
+
     defaultMoveLeft(event) {
         if (this.state.cursorPosition === 0) return
         this.setCursorPosition(this.state.cursorPosition - 1);
@@ -34,41 +69,43 @@ class TextWindow extends Component {
     }
     defaultMoveUp(event) {
         // find the last index of newline
-        var idxLast = findFromStart(this.state.windowText, this.state.cursorPosition - 1, -1, function (elem) {
-            if (elem.text === "Enter") return true
-            return false
-        })
+        console.log("In defaultMoveUp")
+        var currentLineIdx = this.findPrevLineBreak(this.lineBreakSet, this.state.cursorPosition)
+
 
         // no more lines in the array
-        if (idxLast === undefined) return
+        if (currentLineIdx === undefined) return
 
-        var idxLast2 = findFromStart(this.state.windowText, idxLast - 1, -1, function (elem) {
-            if (elem.text === "Enter") return true
-            return false
-        })
-        if (idxLast2 === undefined) idxLast2 = 0
-        var dist = this.state.cursorPosition - idxLast
-        var offset = idxLast2 + dist
-        if (offset > idxLast) this.setCursorPosition(idxLast)
+        var prevLineIdx = this.findPrevLineBreak(this.lineBreakSet, currentLineIdx - 1)
+
+
+        if (prevLineIdx === undefined) prevLineIdx = 0
+
+        console.log(currentLineIdx, prevLineIdx)
+
+        var dist = this.state.cursorPosition - currentLineIdx
+        var offset = prevLineIdx + dist
+        if (offset > currentLineIdx) this.setCursorPosition(currentLineIdx)
         else this.setCursorPosition(offset)
     }
     defaultMoveDown(event) {
-      // find the last index of newline
-      var idxLast = findFromStart(this.state.windowText, this.state.cursorPosition - 1, -1, function (elem) {
-          if (elem.text === "Enter") return true
-          return false
-      })
-      // no more lines in the array
-      if (idxLast === undefined) idxLast = 0
+        // find the last index of newline
+        console.log("In defaultMoveDown")
+        var currentLineIdx = this.findPrevLineBreak(this.lineBreakSet, this.state.cursorPosition)
 
-      var idxLast2 = findFromStart(this.state.windowText, idxLast + 1, 1, function (elem) {
-          if (elem.text === "Enter") return true
-          return false
-      })
-      if (idxLast2 === undefined) return
-      var dist = this.state.cursorPosition - idxLast
-      var offset = idxLast2 + dist
-      this.setCursorPosition(offset)
+
+        // no more lines in the array
+        if (currentLineIdx === undefined) currentLineIdx = 0
+
+        var nextLineIdx = this.findNextLineBreak(this.lineBreakSet, this.state.cursorPosition + 1)
+
+        console.log(currentLineIdx, nextLineIdx)
+
+        if (nextLineIdx === undefined) return
+
+        var dist = this.state.cursorPosition - currentLineIdx
+        var offset = nextLineIdx + dist
+        this.setCursorPosition(offset)
     }
 
     defaultDeleteLeft(event) {
@@ -88,6 +125,32 @@ class TextWindow extends Component {
         console.log(this.lineBreakSet)
         this.insertTextAfterPosition(this.state.cursorPosition, c)
         this.setCursorPosition(this.state.cursorPosition + 1);
+    }
+    setMode(newMode) {
+        this.setState({editorMode: newMode})
+        this.keyComboManager.setMode(newMode)
+    }
+    switchFromInsertToNormal() {
+        this.setMode(NORMAL_MODE)
+    }
+    switchFromNormalToInsert() {
+        this.setMode(INSERT_MODE)
+    }
+
+    skipToBeginning() {
+        this.setCursorPosition(0)
+    }
+    skipToEnd() {
+        this.setCursorPosition(this.state.windowText.length)
+    }
+    skipToEndOfLine() {
+        var lineBreak = this.findNextLineBreak(this.lineBreakSet, this.cursorPosition)
+        if (lineBreak === undefined) this.setCursorPosition(this.state.windowText.length)
+        else this.setCursorPosition(lineBreak)
+    }
+
+    deleteLine() {
+        console.log("Deleted line")
     }
 
     constructor (props) {
@@ -143,6 +206,28 @@ class TextWindow extends Component {
         this.keyComboManager.registerKeyCombo(["Backspace"], [INSERT_MODE], this.defaultDeleteLeft.bind(this))
         this.keyComboManager.registerKeyCombo(["Enter"], [INSERT_MODE], this.defaultAddNewline.bind(this))
         this.keyComboManager.registerKeyCombo(["Delete"], [INSERT_MODE], this.defaultDeleteRight.bind(this))
+
+        // switch to normal mode from insert
+        this.keyComboManager.registerKeyCombo(["Escape"], [INSERT_MODE], this.switchFromInsertToNormal.bind(this))
+
+        // switch to insert mode from normal
+        this.keyComboManager.registerKeyCombo(["i"], [NORMAL_MODE], this.switchFromNormalToInsert.bind(this))
+
+        // skip to beginning of file macro
+        this.keyComboManager.registerKeyCombo(["g", "g"], [NORMAL_MODE], this.skipToBeginning.bind(this))
+
+        // skip to end of file macro
+        this.keyComboManager.registerKeyCombo(["G"], [NORMAL_MODE], this.skipToEnd.bind(this))
+
+        // skip to end of line macro
+        this.keyComboManager.registerKeyCombo(["$"], [NORMAL_MODE], this.skipToEndOfLine.bind(this))
+
+        // move keys in normal mode
+        this.keyComboManager.registerKeyCombo(["j"], [NORMAL_MODE], this.defaultMoveDown.bind(this))
+        this.keyComboManager.registerKeyCombo(["k"], [NORMAL_MODE], this.defaultMoveUp.bind(this))
+        this.keyComboManager.registerKeyCombo(["h"], [NORMAL_MODE], this.defaultMoveLeft.bind(this))
+        this.keyComboManager.registerKeyCombo(["l"], [NORMAL_MODE], this.defaultMoveRight.bind(this))
+        this.keyComboManager.registerKeyCombo(["d", "d"], [NORMAL_MODE], this.deleteLine.bind(this))
     }
 
     createCharSpan(key, style, text) {
@@ -214,8 +299,9 @@ class TextWindow extends Component {
         }
         this.keyComboManager.keyPressed(event)
 
-        var handler = this.keyComboManager.getHandlerForMode(INSERT_MODE)
-        console.log(handler)
+        var handler = this.keyComboManager.getHandlerForMode(this.state.editorMode)
+        this.setMode(this.state.editorMode)
+
         if (handler !== undefined)
             handler(event)
     }

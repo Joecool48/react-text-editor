@@ -1,9 +1,11 @@
 const SHIFT_SCAN_CODE = 16
 const CAPS_LOCK_SCAN_CODE = 20
 
+const START_MODE = "Insert"
+
 class KeyComboManager {
 
-    constructor(maxKeyCombo) {
+    constructor(maxKeyCombo, modeChangeCallBack) {
         // set the max key combo to store
         this.maxKeyCombo = maxKeyCombo
         // a set of all the scancode keys for specials like shift and cntl
@@ -13,12 +15,17 @@ class KeyComboManager {
 
         this.registeredHandlers = new Map()
 
+        this.mode = START_MODE
+
         // create the array for combos. array index 0 has the first key pressed,
         // and index 1 has 2 keys, etc. Resets after it reaches its max and the
         // entire array is hashed and checked if that macro is registered
         for (var i = 0; i < maxKeyCombo; i++) {
             this.keyComboArray.push([])
         }
+
+        // a flag on whether to flush the buffers that keep track of the commands
+        this.flushCommandBuffers = false
 
         // table based on code
         this.shiftModLookup = {
@@ -70,17 +77,29 @@ class KeyComboManager {
             Period: '>',
             Slash: '?'
         }
+        // register the function to call when the mode changes
+        if (modeChangeCallBack !== undefined) {
+            this.modeChangeCallBack = modeChangeCallBack
+        }
     }
+
     // returns a matching combo satisfied for a given mode
-    getHandlerForMode(mode) {
+    getHandlerForMode() {
         for (var i = 0; i < this.keyComboArray.length; i++) {
             var mapVal = this.hashKeyCombo(this.keyComboArray[i])
             // if it exists, then return the function handler
-            if (this.registeredHandlers.has(mode) && this.registeredHandlers.get(mode).has(mapVal)) {
-                return this.registeredHandlers.get(mode).get(mapVal)
+            if (this.registeredHandlers.has(this.mode) && this.registeredHandlers.get(this.mode).has(mapVal)) {
+                this.flushCommandBuffers = true
+                return this.registeredHandlers.get(this.mode).get(mapVal)
             }
         }
         return undefined
+    }
+
+    setMode(mode) {
+        console.log("Set the mode")
+        this.mode = mode
+        this.modeChangeCallBack(mode)
     }
 
     // hashes the keycombo array by turning it into a null delimited string
@@ -123,11 +142,6 @@ class KeyComboManager {
 
     // should only be called if key is not special
     getRealKey(event) {
-        // only shift it if the caps lock XOR shift is true
-        if ((this.specialKeysHeld.has(SHIFT_SCAN_CODE) && !this.specialKeysHeld.has(CAPS_LOCK_SCAN_CODE)) || (!this.specialKeysHeld.has(SHIFT_SCAN_CODE) && this.specialKeysHeld.has(CAPS_LOCK_SCAN_CODE)) && typeof(this.shiftModLookup[event.code]) !== "undefined") {
-            return this.shiftModLookup[event.code] // use the code to get the shift version of the character
-        }
-        // otherwise dont modify and return the key
         return event.key
     }
 
@@ -141,12 +155,14 @@ class KeyComboManager {
                 continue
             }
             else if (this.isRegularKey(event)) {
-                if (this.keyComboArray[i].length === i + 1) {
+                if (this.keyComboArray[i].length === i + 1|| this.flushCommandBuffers) {
                     this.keyComboArray[i] = [] // wipe the array so that we can restart with the combo
                 }
                 this.keyComboArray[i].push(this.getRealKey(event)) // add the scancode
             }
         }
+        this.flushCommandBuffers = false
+
     }
 
     keyUnpressed(event) {
