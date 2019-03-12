@@ -1,13 +1,12 @@
 import React, { Component } from 'react';
-import logo from './logo.svg';
 import './App.css';
 
 import Editor from "./Editor"
 import TextWindow from "./TextWindow"
-
+import KeyComboManager from "./keyComboManager"
 class App extends Component {
   render() {
-    return <TextWindow width="300px" height="200px" backgroundColor="#A9A9A9" cursorColor="green" cursorMode="block" fontColor="black" />
+    return <TextWindow keyComboManager={new KeyComboManager(1)} width="300px" height="200px" backgroundColor="#A9A9A9" cursorColor="green" cursorMode="block" fontColor="black" />
   }
 }
 

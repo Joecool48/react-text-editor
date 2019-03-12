@@ -16,7 +16,7 @@ code {
     background-color: white;
     display: inline-block;
     color: white;
-    width: 1px;
+    width: 3px;
     animation: blinkingCursor 0.8s infinite;
 }
 

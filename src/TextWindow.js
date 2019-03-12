@@ -1,10 +1,15 @@
 import React, { Component } from 'react';
 
+//import KeyComboManager from './keyComboManager'
+
+const MAX_KEY_COMBO_LENGTH = 10
+
 class Char {
     constructor(style, text, sp) {
         this.style = style
         this.text = text
         this.special = sp
+        this.randomId = Math.random(0, 1000000000)
     }
 }
 
@@ -20,10 +25,12 @@ const NORMAL_MODE = "Normal"
 
 class TextWindow extends Component {
     defaultMoveLeft(event) {
-        this.setCursorPosition(this.cursorPosition - 1);
+        if (this.state.cursorPosition === 0) return
+        this.setCursorPosition(this.state.cursorPosition - 1);
     }
     defaultMoveRight(event) {
-        this.setCursorPosition(this.cursorPosition + 1)
+        if (this.state.cursorPosition >= this.state.windowText.length) return
+        this.setCursorPosition(this.state.cursorPosition + 1)
     }
     defaultMoveUp(event) {
         // find the last index of newline
@@ -51,7 +58,6 @@ class TextWindow extends Component {
           if (elem.text === "Enter") return true
           return false
       })
-      console.log(idxLast)
       // no more lines in the array
       if (idxLast === undefined) idxLast = 0
 
@@ -60,11 +66,30 @@ class TextWindow extends Component {
           return false
       })
       if (idxLast2 === undefined) return
-      console.log(idxLast2)
       var dist = this.state.cursorPosition - idxLast
       var offset = idxLast2 + dist
       this.setCursorPosition(offset)
     }
+
+    defaultDeleteLeft(event) {
+        if (this.state.cursorPosition === 0) return
+        this.removeTextAtPosition(this.state.cursorPosition - 1)
+        this.setCursorPosition(this.state.cursorPosition - 1)
+    }
+
+    defaultDeleteRight(event) {
+        this.removeTextAtPosition(this.state.cursorPosition)
+    }
+
+    defaultAddNewline(event) {
+        // add a break to simulate a return
+        var c = new Char({}, event.key, true)
+        this.lineBreakSet.add(this.state.cursorPosition) // cache the location of the index
+        console.log(this.lineBreakSet)
+        this.insertTextAfterPosition(this.state.cursorPosition, c)
+        this.setCursorPosition(this.state.cursorPosition + 1);
+    }
+
     constructor (props) {
         super(props);
         this.state = {
@@ -81,7 +106,6 @@ class TextWindow extends Component {
         }
 
         // set up the handlers
-
         this.keyBindingMap = {
             NORMAL_MODE: {
                 'h': this.defaultMoveLeft,
@@ -99,11 +123,30 @@ class TextWindow extends Component {
                 'i': this.enterInsertMode,
             }
         }
+        // cache that keeps line breaks indexes into the main array
+        this.lineBreakSet = new Set()
 
+        this.modeList = [INSERT_MODE, NORMAL_MODE]
+
+        this.keyComboManager = this.props.keyComboManager // get the key manager from the parent
+
+        // id's for elements to get react to be quiet with its warning about key prop
+        this.cursorRandomId = Math.random(0, 1000000000)
+        this.mainDivRandomId = Math.random(0, 1000000000)
+        // Register the macros with their respective modes.
+        // MUST BIND THE FUNCTION TO THIS SO THAT IT CAN BE CALLED CORRECTLY OUTSIDE
+        this.keyComboManager.registerKeyCombo(["ArrowLeft"], this.modeList, this.defaultMoveLeft.bind(this))
+        this.keyComboManager.registerKeyCombo(["ArrowRight"], this.modeList, this.defaultMoveRight.bind(this))
+        this.keyComboManager.registerKeyCombo(["ArrowUp"], this.modeList, this.defaultMoveUp.bind(this))
+        this.keyComboManager.registerKeyCombo(["ArrowDown"], this.modeList, this.defaultMoveDown.bind(this))
+
+        this.keyComboManager.registerKeyCombo(["Backspace"], [INSERT_MODE], this.defaultDeleteLeft.bind(this))
+        this.keyComboManager.registerKeyCombo(["Enter"], [INSERT_MODE], this.defaultAddNewline.bind(this))
+        this.keyComboManager.registerKeyCombo(["Delete"], [INSERT_MODE], this.defaultDeleteRight.bind(this))
     }
 
-    createCharSpan(style, key) {
-        return <span style={style}>{key}</span>
+    createCharSpan(key, style, text) {
+        return <span key={key} style={style}>{text}</span>
     }
 
     addTextAtPosition(position, elem) {
@@ -122,6 +165,9 @@ class TextWindow extends Component {
         if(position < 0) return
         var arrClone = this.state.windowText.slice(0)
         if (position >= this.state.windowText.length) return
+        if (this.state.windowText[position].special && this.state.windowText[position].text === "Enter")
+            this.lineBreakSet.delete(position)
+        console.log(this.lineBreakSet)
         if (position === this.state.windowText.length - 1) arrClone.pop()
         else arrClone.splice(position, 1)
         this.setState({windowText: arrClone})
@@ -158,49 +204,28 @@ class TextWindow extends Component {
     onKeyDownHandler(event) {
         if (this.state.editorMode === INSERT_MODE) {
             if (this.canDisplayChar(event) && event.shiftKey) {
-                this.insertTextAfterPosition(this.state.cursorPosition, new Char({color: this.state.fontColor}, event.key.toUpperCase()), false)
+                this.insertTextAfterPosition(this.state.cursorPosition, new Char({}, event.key, false))
                 this.setCursorPosition(this.state.cursorPosition + 1);
-            }
-            else if (event.key === "Enter") {
-                // add a break to simulate a return
-                var c = new Char({}, event.key, true)
-                this.insertTextAfterPosition(this.state.cursorPosition, c)
-                this.setCursorPosition(this.state.cursorPosition + 1);
-            }
-            else if (event.key === "Backspace") {
-                if (this.state.cursorPosition === 0) return
-                this.removeTextAtPosition(this.state.cursorPosition - 1)
-                this.setCursorPosition(this.state.cursorPosition - 1)
             }
             else if (this.canDisplayChar(event)){
-                var c = new Char({}, event.key, false)
-
-                this.insertTextAfterPosition(this.state.cursorPosition, c)
+                this.insertTextAfterPosition(this.state.cursorPosition, new Char({}, event.key, false))
                 this.setCursorPosition(this.state.cursorPosition + 1);
             }
         }
+        this.keyComboManager.keyPressed(event)
 
-        /* Arrow keys */
-        if (event.key === "ArrowLeft") {
-            if (this.state.cursorPosition === 0) return
-            this.setCursorPosition(this.state.cursorPosition - 1);
-        }
-        else if (event.key === "ArrowRight") {
-            if (this.state.cursorPosition >= this.state.windowText.length) return
-            this.setCursorPosition(this.state.cursorPosition + 1)
-        }
-        else if (event.key === "ArrowUp") {
-            console.log("Up pressed")
-            this.defaultMoveUp(event);
-        }
-        else if (event.key === "ArrowDown") {
-            console.log("Down pressed")
-            this.defaultMoveDown(event)
-        }
+        var handler = this.keyComboManager.getHandlerForMode(INSERT_MODE)
+        console.log(handler)
+        if (handler !== undefined)
+            handler(event)
+    }
+
+    onKeyUpHandler(event) {
+        this.keyComboManager.keyUnpressed(event)
     }
 
     createCursor(style, text) {
-        return <span id="cursor">{text}</span>
+        return <span key={this.cursorRandomId} id="cursor">{text}</span>
     }
 
     render() {
@@ -209,23 +234,23 @@ class TextWindow extends Component {
             height: this.state.height,
             backgroundColor: this.state.backgroundColor
         }
-        console.log("rend")
         var pos = this.state.cursorPosition
         var displayElems = this.state.windowText.map((elem, idx) => {
             if (!elem.special) {
-                return this.createCharSpan(elem.style, elem.text)
+                // idx functions as a key to get react to be quiet
+                return this.createCharSpan(elem.randomId, elem.style, elem.text)
             }
             else if (elem.special && elem.text === "Enter") {
-                return <br/>
+                return <br key={elem.randomId}></br>
             }
             else {
-                return null
+                return
             }
         })
         // only draw the cursor if in the frame
         if (this.state.shouldDrawCursor)
             displayElems.splice(pos, 0, this.createCursor(null, "|"))
-        return <div id="editorWindow" onKeyDown={event => this.onKeyDownHandler(event)} tabIndex={-1} onBlur={event => this.onBlurHandler(event)} onFocus={event => this.onFocusHandler(event)} style={style}>
+        return <div key={this.divRandomId} id="editorWindow" onKeyDown={event => this.onKeyDownHandler(event)} onKeyUp={event => this.onKeyUpHandler(event)} tabIndex={-1} onBlur={event => this.onBlurHandler(event)} onFocus={event => this.onFocusHandler(event)} style={style}>
         {displayElems}
         </div>
     }
