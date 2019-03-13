@@ -6,7 +6,7 @@ class StatusBar extends Component {
         this.state = {mode: props.mode}
     }
     componentWillReceiveProps(newProps) {
-        this.setState({mode: newProps.mode})
+        this.setState({mode: newProps.mode, line: newProps.line, col: newProps.col})
     }
     render() {
         const style = {
@@ -28,7 +28,7 @@ class StatusBar extends Component {
         }
         return <div style={style3}>
             <p style={style}>{this.state.mode}</p>
-            <p style={style2}>33</p>
+            <p style={style2}>{this.state.line} | {this.state.col}</p>
         </div>
     }
 }

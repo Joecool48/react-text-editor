@@ -42,7 +42,7 @@ class TextWindow extends Component {
                 minIdx = arr[i]
             }
         }
-        return minIdx
+        return minIdx === undefined ? 0 : minIdx
     }
     findNextLineBreak(set, pos) {
       console.log("Position:", pos)
@@ -56,7 +56,7 @@ class TextWindow extends Component {
             }
         }
         console.log("Next break: ", maxIdx)
-        return maxIdx
+        return maxIdx === undefined ? this.state.windowText.length : maxIdx
     }
 
     defaultMoveLeft(event) {
@@ -154,6 +154,13 @@ class TextWindow extends Component {
 
     deleteLine() {
         console.log("Deleted line")
+        var prev = this.findPrevLineBreak(this.lineBreakSet, this.state.cursorPosition)
+        var next = this.findNextLineBreak(this.lineBreakSet, this.state.cursorPosition)
+        var firstHalf = this.state.windowText.slice(0, prev)
+        var secondHalf = this.state.windowText.slice(next)
+        var newArr = firstHalf.concat(secondHalf)
+        this.setState({windowText: newArr})
+        this.setCursorPosition(prev)
     }
 
     switchToAppend() {
@@ -175,7 +182,8 @@ class TextWindow extends Component {
             editorMode: INSERT_MODE,
             windowText: []
         }
-
+        this.line = 0
+        this.col = 0
         // set up the handlers
         this.keyBindingMap = {
             NORMAL_MODE: {
@@ -262,8 +270,7 @@ class TextWindow extends Component {
         if (this.state.windowText[position].special && this.state.windowText[position].text === "Enter")
             this.lineBreakSet.delete(position)
         console.log(this.lineBreakSet)
-        if (position === this.state.windowText.length - 1) arrClone.pop()
-        else arrClone.splice(position, 1)
+        arrClone.splice(position, 1)
         this.setState({windowText: arrClone})
     }
     onFocusHandler(event) {
@@ -277,9 +284,18 @@ class TextWindow extends Component {
         this.setState({shouldDrawCursor: false})
         console.log("Focus unreceived")
     }
-
+    calcLineNumber(set, pos) {
+      var arr = Array.from(set)
+      var count = 0
+      for (var i = 0; i < arr.length; i++) {
+          if (arr[i] <= pos) count++
+          else break
+      }
+      return count
+    }
     setCursorPosition(pos) {
         if (pos < 0) return
+        this.keyComboManager.setCursorPos(this.calcLineNumber(this.lineBreakSet, this.state.cursorPosition) + 1, this.state.cursorPosition - this.findPrevLineBreak(this.lineBreakSet, this.state.cursorPosition) + 1)
         this.setState({cursorPosition: pos})
     }
 

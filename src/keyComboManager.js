@@ -5,7 +5,7 @@ const START_MODE = "Insert"
 
 class KeyComboManager {
 
-    constructor(maxKeyCombo, modeChangeCallBack) {
+    constructor(maxKeyCombo, stateChangeCallback) {
         // set the max key combo to store
         this.maxKeyCombo = maxKeyCombo
         // a set of all the scancode keys for specials like shift and cntl
@@ -23,7 +23,8 @@ class KeyComboManager {
         for (var i = 0; i < maxKeyCombo; i++) {
             this.keyComboArray.push([])
         }
-
+        this.line = 0
+        this.col = 0
         // a flag on whether to flush the buffers that keep track of the commands
         this.flushCommandBuffers = false
 
@@ -78,8 +79,8 @@ class KeyComboManager {
             Slash: '?'
         }
         // register the function to call when the mode changes
-        if (modeChangeCallBack !== undefined) {
-            this.modeChangeCallBack = modeChangeCallBack
+        if (stateChangeCallback !== undefined) {
+            this.stateChangeCallback = stateChangeCallback
         }
     }
 
@@ -99,9 +100,13 @@ class KeyComboManager {
     setMode(mode) {
         console.log("Set the mode")
         this.mode = mode
-        this.modeChangeCallBack(mode)
+        this.stateChangeCallback(mode, this.line, this.col)
     }
-
+    setCursorPos(line, col) {
+        this.line = line
+        this.col = col
+        this.stateChangeCallback(this.mode, line, col)
+    }
     // hashes the keycombo array by turning it into a null delimited string
     hashKeyCombo(comboArray) {
         var mapVal = ""
