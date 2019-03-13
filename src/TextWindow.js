@@ -158,9 +158,12 @@ class TextWindow extends Component {
         var next = this.findNextLineBreak(this.lineBreakSet, this.state.cursorPosition)
         var firstHalf = this.state.windowText.slice(0, prev)
         var secondHalf = this.state.windowText.slice(next)
+        console.log(this.lineBreakSet)
+        this.lineBreakSet.delete(prev) // get rid of the line break you just deleted
         var newArr = firstHalf.concat(secondHalf)
         this.setState({windowText: newArr})
-        this.setCursorPosition(prev)
+        var cursor = this.findPrevLineBreak(this.lineBreakSet, prev - 1)
+        this.setCursorPosition(cursor + 1)
     }
 
     switchToAppend() {
