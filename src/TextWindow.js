@@ -60,10 +60,12 @@ class TextWindow extends Component {
     }
 
     defaultMoveLeft(event) {
+        if (this.state.editorMode !== INSERT_MODE && this.lineBreakSet.has(this.state.cursorPosition - 1)) return
         if (this.state.cursorPosition === 0) return
         this.setCursorPosition(this.state.cursorPosition - 1);
     }
     defaultMoveRight(event) {
+        if (this.state.editorMode !== INSERT_MODE && this.lineBreakSet.has(this.state.cursorPosition + 1)) return
         if (this.state.cursorPosition >= this.state.windowText.length) return
         this.setCursorPosition(this.state.cursorPosition + 1)
     }
@@ -76,7 +78,7 @@ class TextWindow extends Component {
         // no more lines in the array
         if (currentLineIdx === undefined) return
 
-        var prevLineIdx = this.findPrevLineBreak(this.lineBreakSet, currentLineIdx - 1)
+        var prevLineIdx = this.findPrevLineBreak(this.lineBreakSet, currentLineIdx)
 
 
         if (prevLineIdx === undefined) prevLineIdx = 0
@@ -97,7 +99,7 @@ class TextWindow extends Component {
         // no more lines in the array
         if (currentLineIdx === undefined) currentLineIdx = 0
 
-        var nextLineIdx = this.findNextLineBreak(this.lineBreakSet, this.state.cursorPosition + 1)
+        var nextLineIdx = this.findNextLineBreak(this.lineBreakSet, this.state.cursorPosition)
 
         console.log(currentLineIdx, nextLineIdx)
 
@@ -131,6 +133,7 @@ class TextWindow extends Component {
         this.keyComboManager.setMode(newMode)
     }
     switchFromInsertToNormal() {
+        if (this.state.cursorPosition > 0 && !this.lineBreakSet.has(this.state.cursorPosition - 1)) this.setCursorPosition(this.state.cursorPosition - 1)
         this.setMode(NORMAL_MODE)
     }
     switchFromNormalToInsert() {
@@ -151,6 +154,11 @@ class TextWindow extends Component {
 
     deleteLine() {
         console.log("Deleted line")
+    }
+
+    switchToAppend() {
+      if (this.state.cursorPosition < this.state.windowText.length && !this.lineBreakSet.has(this.state.cursorPosition + 1)) this.setCursorPosition(this.state.cursorPosition + 1)
+      this.switchFromNormalToInsert()
     }
 
     constructor (props) {
@@ -228,6 +236,7 @@ class TextWindow extends Component {
         this.keyComboManager.registerKeyCombo(["h"], [NORMAL_MODE], this.defaultMoveLeft.bind(this))
         this.keyComboManager.registerKeyCombo(["l"], [NORMAL_MODE], this.defaultMoveRight.bind(this))
         this.keyComboManager.registerKeyCombo(["d", "d"], [NORMAL_MODE], this.deleteLine.bind(this))
+        this.keyComboManager.registerKeyCombo(["a"], [NORMAL_MODE], this.switchToAppend.bind(this))
     }
 
     createCharSpan(key, style, text) {
