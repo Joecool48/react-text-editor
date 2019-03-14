@@ -82,14 +82,14 @@ class TextWindow extends Component {
     defaultMoveUp(event) {
         if (this.state.cursorLine === 0) return // cant move up anymore obviously
         // the new position above is calculated based off of the min of the current pos, and the next line
-        var newColIdx = min(this.state.cursorCol, this.windowText.get(this.state.cursorLine - 1).length - 1)
+        var newColIdx = min(this.state.cursorCol, this.windowText.get(this.state.cursorLine - 1).length)
         this.setCursorPosition(this.state.cursorLine - 1, newColIdx)
     }
     defaultMoveDown(event) {
         // check out of bounds
         if (this.state.cursorLine === this.windowText.length - 1) return
         // same routine for calculating below idx as above
-        var newColIdx = min(this.state.cursorCol, this.windowText.get(this.state.cursorLine +  1).length - 1)
+        var newColIdx = min(this.state.cursorCol, this.windowText.get(this.state.cursorLine +  1).length)
         this.setCursorPosition(this.state.cursorLine + 1, newColIdx)
     }
     // Deletes an element one to the left of the cursor position.
@@ -127,7 +127,7 @@ class TextWindow extends Component {
         this.keyComboManager.setMode(newMode)
     }
     switchFromInsertToNormal() {
-        if (this.state.cursorPosition > 0 && !this.lineBreakSet.has(this.state.cursorPosition - 1)) this.setCursorPosition(this.state.cursorPosition - 1)
+        if (this.state.cursorCol > 0) this.setCursorPosition(this.state.cursorLine, this.state.cursorCol - 1)
         this.setMode(NORMAL_MODE)
     }
     switchFromNormalToInsert() {
@@ -177,11 +177,16 @@ class TextWindow extends Component {
             this.setCursorPosition(this.state.cursorLine + 1, 0)
         }
     }
-
-    switchToAppend() {
-      var newCol = this.state.cursorCol
-      if (newCol + 1 < this.windowText.get(this.state.cursorLine).length)
-          this.setState({cursorCol: newCol + 1})
+    // add a newline below current line, then switch to insert mode
+    addNewlineInsert(event) {
+        // insert a newline right after, and switch to it
+        this.windowText.insert(this.state.cursorLine + 1, new AvlTreeList())
+        this.setCursorPosition(this.state.cursorLine + 1, 0)
+        this.switchFromNormalToInsert()
+    }
+    switchToAppend(event) {
+      if (this.state.cursorCol <= this.windowText.get(this.state.cursorLine).length)
+          this.setCursorPosition(this.state.cursorLine, this.state.cursorCol + 1)
       this.switchFromNormalToInsert()
     }
 
@@ -191,6 +196,8 @@ class TextWindow extends Component {
             width: this.props.width,
             height: this.props.height,
             fontColor: this.props.fontColor,
+            fontSize: this.props.fontSize,
+            lineHeight: this.props.lineHeight,
             backgroundColor: this.props.backgroundColor,
             cursorColor: this.props.cursorColor,
             currentCursorColor: this.props.cursorColor,
@@ -235,17 +242,21 @@ class TextWindow extends Component {
         // skip to end of line macro
         this.keyComboManager.registerKeyCombo(["$"], [NORMAL_MODE], this.skipToEndOfLine.bind(this))
 
-        // move keys in normal mode
+        // move keys in normal mode for movement, deletion, and mode switching
         this.keyComboManager.registerKeyCombo(["j"], [NORMAL_MODE], this.defaultMoveDown.bind(this))
         this.keyComboManager.registerKeyCombo(["k"], [NORMAL_MODE], this.defaultMoveUp.bind(this))
         this.keyComboManager.registerKeyCombo(["h"], [NORMAL_MODE], this.defaultMoveLeft.bind(this))
         this.keyComboManager.registerKeyCombo(["l"], [NORMAL_MODE], this.defaultMoveRight.bind(this))
+        //delete line macro
         this.keyComboManager.registerKeyCombo(["d", "d"], [NORMAL_MODE], this.deleteLine.bind(this))
+        // switch to insert mode and append
         this.keyComboManager.registerKeyCombo(["a"], [NORMAL_MODE], this.switchToAppend.bind(this))
+        // add a newline below and go to it
+        this.keyComboManager.registerKeyCombo(["o"], [NORMAL_MODE], this.addNewlineInsert.bind(this))
     }
 
     createCharSpan(key, style, text) {
-        return <span key={key} style={style}>{text}</span>
+        return <span className="text" key={key} style={style}>{text}</span>
     }
 
     addTextAtPosition(line, col, elem) {
@@ -317,6 +328,18 @@ class TextWindow extends Component {
         return <span key={this.cursorRandomId} id="cursor">{text}</span>
     }
 
+    // a method to mark the starting and ending lines that are displayed on screen
+    // simply returns an array of the line to start from
+    scrollRange() {
+        // number of lines that can be displayed on screen vertically
+        var numLines = 8 // this.state.width / this.state.lineHeight
+        // needs no scrolling
+        if (this.getNumLines() <= numLines) return 0
+        // based on the cursor position show N many lines above and below
+        var numOff = this.getNumLines() - numLines // number of lines that cant be displayed
+        // display numLines / 2 above and below cursor position
+        return Math.ceil(numOff)
+    }
     render() {
         const style = {
             width: this.state.width,
@@ -327,7 +350,9 @@ class TextWindow extends Component {
         var elems = []
         var rowIdx = 0
         var colIdx = 0
-        for (rowIdx = 0; rowIdx < this.windowText.length; rowIdx++) {
+        // how many lines to display
+        var displayLineNum = this.state.cursorLine + 8 > this.windowText.length ? this.windowText.length : this.state.cursorLine + 8
+        for (rowIdx = this.scrollRange(); rowIdx < displayLineNum; rowIdx++) {
             if (this.state.shouldDrawCursor && this.state.cursorCol === 0 && this.state.cursorLine === rowIdx) elems.push(this.createCursor(null, "|"))
             colIdx = 0
             this.windowText.get(rowIdx).forEach(function(elem) {

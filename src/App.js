@@ -24,7 +24,7 @@ class App extends Component {
   render() {
     return (
         <div>
-            <TextWindow keyComboManager={this.keyManager} margin="0px" width="300px" height="200px" backgroundColor="#A9A9A9" cursorColor="green" cursorMode="block" fontColor="black" />
+            <TextWindow lineHeight="15px" fontSize="15px" keyComboManager={this.keyManager} margin="0px" width="300px" height="150px" backgroundColor="#A9A9A9" cursorColor="green" cursorMode="block" fontColor="black" />
             <StatusBar width="300px" mode={this.state.mode} line={this.state.line} col={this.state.col}/>
         </div>
       )

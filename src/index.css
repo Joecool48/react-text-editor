@@ -24,3 +24,7 @@ code {
     50%{color: white; background-color: white}
     100% {color: transparent; background-color: transparent;}
 }
+
+.text {
+    font-family: monospace;
+}
