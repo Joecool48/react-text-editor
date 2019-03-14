@@ -1,8 +1,9 @@
+import AvlTreeList from "./avltreelist"
 import React, { Component } from 'react';
 
 //import KeyComboManager from './keyComboManager'
 
-const MAX_KEY_COMBO_LENGTH = 10
+//const MAX_KEY_COMBO_LENGTH = 10
 
 class Char {
     constructor(style, text, sp) {
@@ -13,121 +14,111 @@ class Char {
     }
 }
 
-function findFromStart(arr, start, step, func) {
-    for (var i = start; i >= 0 && i < arr.length; i += step) {
-        if (func(arr[i])) return i
-    }
-    return undefined
+// function findFromStart(arr, start, step, func) {
+//     for (var i = start; i >= 0 && i < arr.length; i += step) {
+//         if (func(arr[i])) return i
+//     }
+//     return undefined
+// }
+
+// function abs(a) {
+//     return a > 0 ? a : -a
+// }
+
+function min(a, b) {
+    return a < b ? a : b
 }
 
-function abs(a) {
-    return a > 0 ? a : -a
-}
+// function max(a, b) {
+//     return a > b ? a : b
+// }
 
 const INSERT_MODE = "Insert"
 const NORMAL_MODE = "Normal"
 
 class TextWindow extends Component {
-
-    // Takes in a position and a set and finds the value right before and value right after pos
-    findPrevLineBreak(set, pos) {
-        var minIdx = undefined
-        var dist = pos
-        console.log(set)
-        var arr = Array.from(set)
-        for (var i = 0; i < arr.length; i++) {
-            console.log(arr[i])
-            if (arr[i] <= pos && pos - arr[i] < dist) {
-                dist = (pos - arr[i])
-                minIdx = arr[i]
-            }
-        }
-        return minIdx === undefined ? 0 : minIdx
+    getNumLines() {
+        return this.windowText.length
     }
-    findNextLineBreak(set, pos) {
-      console.log("Position:", pos)
-        var maxIdx = undefined
-        var dist = pos
-        var arr = Array.from(set)
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i] >= pos && abs(pos - arr[i]) < dist) {
-                dist = abs(pos - arr[i])
-                maxIdx = arr[i]
-            }
+    getLineLen() {
+        return this.windowText.get(this.state.cursorLine).length
+    }
+
+    // concats the second list to the end of the first
+    concat(arr1, arr2) {
+        // iterate through arr2 and push to arr1
+        var iter = arr2.iterator()
+        while(iter.hasNext()) {
+            var val = iter.next() // get element
+            arr1.push(val)
         }
-        console.log("Next break: ", maxIdx)
-        return maxIdx === undefined ? this.state.windowText.length : maxIdx
     }
 
     defaultMoveLeft(event) {
-        if (this.state.editorMode !== INSERT_MODE && this.lineBreakSet.has(this.state.cursorPosition - 1)) return
-        if (this.state.cursorPosition === 0) return
-        this.setCursorPosition(this.state.cursorPosition - 1);
+        if (this.state.editorMode !== INSERT_MODE && this.state.cursorCol === 0) return
+        if (this.state.cursorCol === 0 && this.state.cursorLine === 0) return
+        var row = this.state.cursorLine
+        var col = this.state.cursorCol
+        if (col === 0) {
+            row -= 1
+            col = this.windowText.get(row).length - 1 // col is 0 indexed
+        }
+        this.setCursorPosition(row, col)
     }
     defaultMoveRight(event) {
-        if (this.state.editorMode !== INSERT_MODE && this.lineBreakSet.has(this.state.cursorPosition + 1)) return
-        if (this.state.cursorPosition >= this.state.windowText.length) return
-        this.setCursorPosition(this.state.cursorPosition + 1)
+        if (this.state.editorMode !== INSERT_MODE && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length - 1) return
+        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length - 1) return
+        var row = this.state.cursorLine
+        var col = this.state.cursorCol
+        if (col === this.windowText.get(this.state.cursorLine).length - 1) {
+            row += 1
+            col = 0
+        }
+        this.setCursorPosition(row, col)
     }
     defaultMoveUp(event) {
-        // find the last index of newline
-        console.log("In defaultMoveUp")
-        var currentLineIdx = this.findPrevLineBreak(this.lineBreakSet, this.state.cursorPosition)
-
-
-        // no more lines in the array
-        if (currentLineIdx === undefined) return
-
-        var prevLineIdx = this.findPrevLineBreak(this.lineBreakSet, currentLineIdx)
-
-
-        if (prevLineIdx === undefined) prevLineIdx = 0
-
-        console.log(currentLineIdx, prevLineIdx)
-
-        var dist = this.state.cursorPosition - currentLineIdx
-        var offset = prevLineIdx + dist
-        if (offset > currentLineIdx) this.setCursorPosition(currentLineIdx)
-        else this.setCursorPosition(offset)
+        if (this.state.cursorLine === 0) return // cant move up anymore obviously
+        // the new position above is calculated based off of the min of the current pos, and the next line
+        var newColIdx = min(this.state.cursorCol, this.windowText.get(this.state.cursorLine - 1).length - 1)
+        this.setCursorPosition(this.state.cursorLine - 1, newColIdx)
     }
     defaultMoveDown(event) {
-        // find the last index of newline
-        console.log("In defaultMoveDown")
-        var currentLineIdx = this.findPrevLineBreak(this.lineBreakSet, this.state.cursorPosition)
-
-
-        // no more lines in the array
-        if (currentLineIdx === undefined) currentLineIdx = 0
-
-        var nextLineIdx = this.findNextLineBreak(this.lineBreakSet, this.state.cursorPosition)
-
-        console.log(currentLineIdx, nextLineIdx)
-
-        if (nextLineIdx === undefined) return
-
-        var dist = this.state.cursorPosition - currentLineIdx
-        var offset = nextLineIdx + dist
-        this.setCursorPosition(offset)
+        // check out of bounds
+        if (this.state.cursorLine === this.windowText.length - 1) return
+        // same routine for calculating below idx as above
+        var newColIdx = min(this.state.cursorCol, this.windowText.get(this.state.cursorLine +  1).length - 1)
+        this.setCursorPosition(this.state.cursorLine + 1, newColIdx)
     }
-
+    // Deletes an element one to the left of the cursor position.
+    // If there are no more left on the current line it goes to the line below to delete
     defaultDeleteLeft(event) {
-        if (this.state.cursorPosition === 0) return
-        this.removeTextAtPosition(this.state.cursorPosition - 1)
-        this.setCursorPosition(this.state.cursorPosition - 1)
+        if (this.state.cursorLine === 0 && this.state.cursorCol === 0) return
+        // if nothing in the line, then delete the line
+        if (this.getLineLen() === 0) {
+            this.windowText.remove(this.state.cursorLine)
+            var newCursorLine = this.state.cursorLine - 1
+            this.setCursorPosition(newCursorLine, this.windowText.get(newCursorLine).length - 1)
+        }
+        /* Append it to the row before */
+        else if (this.state.cursorCol === 0 && this.state.cursorLine !== 0) {
+            // save line length before concatenating
+            var lineLen = this.windowText.get(this.state.cursorLine - 1).length
+            this.concat(this.windowText.get(this.state.cursorLine - 1), this.windowText.get(this.state.cursorLine))
+            this.windowText.remove(this.state.cursorLine)
+            this.setCursorPosition(this.state.cursorLine - 1, lineLen - 1)
+        }
+        else {
+            this.windowText.get(this.state.cursorLine).remove(this.state.cursorCol - 1)
+            this.setCursorPosition(this.state.cursorLine, this.state.cursorCol - 1)
+        }
     }
 
     defaultDeleteRight(event) {
-        this.removeTextAtPosition(this.state.cursorPosition)
+        // check if out of bounds
+        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length - 1) return
+        return // TODO later
     }
 
-    defaultAddNewline(event) {
-        // add a break to simulate a return
-        var c = new Char({}, event.key, true)
-        this.lineBreakSet.add(this.state.cursorPosition) // cache the location of the index
-        console.log(this.lineBreakSet)
-        this.insertTextAfterPosition(this.state.cursorPosition, c)
-        this.setCursorPosition(this.state.cursorPosition + 1);
-    }
     setMode(newMode) {
         this.setState({editorMode: newMode})
         this.keyComboManager.setMode(newMode)
@@ -141,33 +132,42 @@ class TextWindow extends Component {
     }
 
     skipToBeginning() {
-        this.setCursorPosition(0)
+        this.setCursorPosition(this.state.cursorLine, 0)
     }
     skipToEnd() {
-        this.setCursorPosition(this.state.windowText.length)
+        this.setCursorPosition(this.getNumLines(), this.windowText.get(this.getNumLines() - 1).length - 1)
     }
     skipToEndOfLine() {
-        var lineBreak = this.findNextLineBreak(this.lineBreakSet, this.cursorPosition)
-        if (lineBreak === undefined) this.setCursorPosition(this.state.windowText.length)
-        else this.setCursorPosition(lineBreak)
+        this.setCursorPosition(this.state.cursorLine, this.getLineLen() - 1)
     }
 
     deleteLine() {
-        console.log("Deleted line")
-        var prev = this.findPrevLineBreak(this.lineBreakSet, this.state.cursorPosition)
-        var next = this.findNextLineBreak(this.lineBreakSet, this.state.cursorPosition)
-        var firstHalf = this.state.windowText.slice(0, prev)
-        var secondHalf = this.state.windowText.slice(next)
-        console.log(this.lineBreakSet)
-        this.lineBreakSet.delete(prev) // get rid of the line break you just deleted
-        var newArr = firstHalf.concat(secondHalf)
-        this.setState({windowText: newArr})
-        var cursor = this.findPrevLineBreak(this.lineBreakSet, prev - 1)
-        this.setCursorPosition(cursor + 1)
+        // stay at current cursorLine unless you were at the last one
+        if (this.state.cursorLine === this.getNumLines() - 1) {
+            this.windowText.remove(this.state.cursorLine)
+            this.setCursorPosition(this.state.cursorLine - 1, 0) // set back to beginning of line
+        }
+        else {
+            this.windowText.remove(this.state.cursorLine) // no need to go down a line
+        }
+    }
+
+    defaultAddNewline() {
+        // if not at the end or beginning, split the line in two
+        if (this.state.cursorCol !== 0 && this.state.cursorCol !== this.getLineLen() - 1) {
+            // split the array at position
+            var newArr = this.windowText.get(this.state.cursorLine).splice(this.state.cursorCol)
+            this.windowText.insert(this.state.cursorLine, newArr)
+            this.setCursorPosition(this.state.cursorLine + 1, 0)
+        }
+        else {
+            // insert a new list
+            this.windowText.insert(this.state.cursorLine, new AvlTreeList())
+            this.setCursorPosition(this.state.cursorLine + 1, 0) // technically it is at a undefined position since 0 doesnt exist
+        }
     }
 
     switchToAppend() {
-      if (this.state.cursorPosition < this.state.windowText.length && !this.lineBreakSet.has(this.state.cursorPosition + 1)) this.setCursorPosition(this.state.cursorPosition + 1)
       this.switchFromNormalToInsert()
     }
 
@@ -180,34 +180,13 @@ class TextWindow extends Component {
             backgroundColor: this.props.backgroundColor,
             cursorColor: this.props.cursorColor,
             currentCursorColor: this.props.cursorColor,
-            cursorPosition: null,
+            cursorLine: 0,
+            cursorCol: 0,
             cursorMode: this.props.cursorMode,
-            editorMode: INSERT_MODE,
-            windowText: []
+            editorMode: INSERT_MODE
         }
-        this.line = 0
-        this.col = 0
-        // set up the handlers
-        this.keyBindingMap = {
-            NORMAL_MODE: {
-                'h': this.defaultMoveLeft,
-                'l': this.defaultMoveRight,
-                'j': this.defaultMoveDown,
-                'k': this.defaultMoveUp,
-                'gg': this.gotToFirstLine,
-                'G': this.goToLastLine,
-                'w': this.jumpForwardStartWord,
-                'e': this.jumpforwardEndWord,
-                'b': this.jumpBackStartWord,
-                '0': this.jumpStartLine,
-                '$': this.jumpEndLine,
-                'a': this.appendToCursor,
-                'i': this.enterInsertMode,
-            }
-        }
-        // cache that keeps line breaks indexes into the main array
-        this.lineBreakSet = new Set()
-
+        // outside of state for efficient updating
+        this.windowText = new AvlTreeList([new AvlTreeList()]) // create 2d list of avl list
         this.modeList = [INSERT_MODE, NORMAL_MODE]
 
         this.keyComboManager = this.props.keyComboManager // get the key manager from the parent
@@ -254,27 +233,16 @@ class TextWindow extends Component {
         return <span key={key} style={style}>{text}</span>
     }
 
-    addTextAtPosition(position, elem) {
-        var arrClone = this.state.windowText.slice(0)
-        if (position >= this.state.windowText.length) arrClone.push(elem)
-        else arrClone[position] = elem
-        this.setState({windowText: arrClone})
+    addTextAtPosition(line, col, elem) {
+        if (col >= this.getLineLen()) this.windowText.get(line).push(elem)
+        else this.windowText.get(line).set(col, elem)
+        this.forceUpdate() // render to improve efficiency by not having the array in state
     }
-    insertTextAfterPosition(position, elem) {
-        var arrClone = this.state.windowText.slice(0)
-        if (position >= this.state.windowText.length) arrClone.push(elem)
-        else arrClone.splice(position, 0, elem)
-        this.setState({windowText: arrClone})
-    }
-    removeTextAtPosition(position) {
-        if(position < 0) return
-        var arrClone = this.state.windowText.slice(0)
-        if (position >= this.state.windowText.length) return
-        if (this.state.windowText[position].special && this.state.windowText[position].text === "Enter")
-            this.lineBreakSet.delete(position)
-        console.log(this.lineBreakSet)
-        arrClone.splice(position, 1)
-        this.setState({windowText: arrClone})
+    insertTextAfterPosition(line, col, elem) {
+        if (col >= this.getLineLen()) this.windowText.get(line).push(elem)
+        else {
+            this.windowtext.get(line).insert(col, elem) // insert the element right after the current pos
+        }
     }
     onFocusHandler(event) {
         if (this.state.cursorPosition === null) {
@@ -287,19 +255,9 @@ class TextWindow extends Component {
         this.setState({shouldDrawCursor: false})
         console.log("Focus unreceived")
     }
-    calcLineNumber(set, pos) {
-      var arr = Array.from(set)
-      var count = 0
-      for (var i = 0; i < arr.length; i++) {
-          if (arr[i] <= pos) count++
-          else break
-      }
-      return count
-    }
-    setCursorPosition(pos) {
-        if (pos < 0) return
-        this.keyComboManager.setCursorPos(this.calcLineNumber(this.lineBreakSet, this.state.cursorPosition) + 1, this.state.cursorPosition - this.findPrevLineBreak(this.lineBreakSet, this.state.cursorPosition) + 1)
-        this.setState({cursorPosition: pos})
+    setCursorPosition(row, col) {
+        this.keyComboManager.setCursorPos(row + 1, col + 1)
+        this.setState({cursorLine : row, cursorCol: col})
     }
 
     canDisplayChar(event) {
@@ -317,11 +275,11 @@ class TextWindow extends Component {
     onKeyDownHandler(event) {
         if (this.state.editorMode === INSERT_MODE) {
             if (this.canDisplayChar(event) && event.shiftKey) {
-                this.insertTextAfterPosition(this.state.cursorPosition, new Char({}, event.key, false))
+                this.insertTextAfterPosition(this.state.cursorLine, this.state.cursorCol, new Char({}, event.key, false))
                 this.setCursorPosition(this.state.cursorPosition + 1);
             }
             else if (this.canDisplayChar(event)){
-                this.insertTextAfterPosition(this.state.cursorPosition, new Char({}, event.key, false))
+                this.insertTextAfterPosition(this.state.cursorLine, this.state.cursorCol, new Char({}, event.key, false))
                 this.setCursorPosition(this.state.cursorPosition + 1);
             }
         }
@@ -348,24 +306,27 @@ class TextWindow extends Component {
             height: this.state.height,
             backgroundColor: this.state.backgroundColor
         }
-        var pos = this.state.cursorPosition
-        var displayElems = this.state.windowText.map((elem, idx) => {
-            if (!elem.special) {
-                // idx functions as a key to get react to be quiet
-                return this.createCharSpan(elem.randomId, elem.style, elem.text)
+        // convert the avl 2d list to a 1d array using iterators to have linear time
+        var elems = []
+        var rowIdx
+        var colIter, colIdx
+        for (rowIdx = 0; rowIdx < this.windowText.length; rowIdx++) {
+            for (colIter = this.windowText.get(rowIdx).iterator(), colIdx = 0; colIter.hasNext(); colIter.next(), colIdx++) {
+                if (!colIter.special) {
+                    // idx functions as a key to get react to be quiet
+                    elems.push(this.createCharSpan(colIter.randomId, colIter.style, colIter.text))
+                }
+                else if (colIter.special && colIter.text === "Enter") {
+                    elems.push(<br key={colIter.randomId}></br>)
+                }
+                if (this.state.shouldDrawCursor && this.state.cursorLine === rowIdx && this.state.cursorCol === colIdx) {
+                    elems.push(this.createCursor(null, "|"))
+                }
             }
-            else if (elem.special && elem.text === "Enter") {
-                return <br key={elem.randomId}></br>
-            }
-            else {
-                return
-            }
-        })
-        // only draw the cursor if in the frame
-        if (this.state.shouldDrawCursor)
-            displayElems.splice(pos, 0, this.createCursor(null, "|"))
+        }
+
         return <div key={this.divRandomId} id="editorWindow" onKeyDown={event => this.onKeyDownHandler(event)} onKeyUp={event => this.onKeyUpHandler(event)} tabIndex={-1} onBlur={event => this.onBlurHandler(event)} onFocus={event => this.onFocusHandler(event)} style={style}>
-        {displayElems}
+        {elems}
         </div>
     }
 }

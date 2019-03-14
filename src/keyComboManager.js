@@ -1,5 +1,5 @@
-const SHIFT_SCAN_CODE = 16
-const CAPS_LOCK_SCAN_CODE = 20
+//const SHIFT_SCAN_CODE = 16
+//const CAPS_LOCK_SCAN_CODE = 20
 
 const START_MODE = "Insert"
 

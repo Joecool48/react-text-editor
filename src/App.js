@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import './App.css';
 
-import Editor from "./Editor"
+//import Editor from "./Editor"
 import TextWindow from "./TextWindow"
 import KeyComboManager from "./keyComboManager"
 import StatusBar from "./StatusBar"
