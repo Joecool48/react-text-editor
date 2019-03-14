@@ -158,16 +158,22 @@ class TextWindow extends Component {
 
     defaultAddNewline(event) {
         // if not at the end or beginning, split the line in two
-        if (this.state.cursorCol !== 0 && this.state.cursorCol !== this.getLineLen() - 1) {
+        if (this.state.cursorCol !== 0 && this.state.cursorCol !== this.getLineLen()) {
             // split the array at position
             var newArr = this.windowText.get(this.state.cursorLine).splice(0, this.state.cursorCol)
             this.windowText.insert(this.state.cursorLine, newArr)
             this.setCursorPosition(this.state.cursorLine + 1, 0)
         }
-        else {
+        /* cursor is at beginning, so move the entire line up */
+        else if (this.state.cursorCol === 0) {
             // insert a new list
             this.windowText.insert(this.state.cursorLine, new AvlTreeList())
             this.setCursorPosition(this.state.cursorLine + 1, 0) // technically it is at a undefined position since 0 doesnt exist
+        }
+        /* cursor is at end of line so add a line above it and increment linenum*/
+        else {
+            this.windowText.insert(this.state.cursorLine + 1, new AvlTreeList())
+            this.setCursorPosition(this.state.cursorLine + 1, 0)
         }
     }
 
