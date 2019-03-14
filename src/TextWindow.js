@@ -61,19 +61,22 @@ class TextWindow extends Component {
         var col = this.state.cursorCol
         if (col === 0) {
             row -= 1
-            col = this.windowText.get(row).length - 1 // col is 0 indexed
+            col = this.windowText.get(row).length // col is 0 indexed
         }
+        else col--
         this.setCursorPosition(row, col)
     }
     defaultMoveRight(event) {
         if (this.state.editorMode !== INSERT_MODE && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length - 1) return
-        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length - 1) return
+        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length) return
+        console.log("AFTER", this.state.cursorCol)
         var row = this.state.cursorLine
         var col = this.state.cursorCol
-        if (col === this.windowText.get(this.state.cursorLine).length - 1) {
+        if (col === this.windowText.get(this.state.cursorLine).length) {
             row += 1
             col = 0
         }
+        else col++
         this.setCursorPosition(row, col)
     }
     defaultMoveUp(event) {
@@ -97,7 +100,7 @@ class TextWindow extends Component {
         if (this.getLineLen() === 0) {
             this.windowText.remove(this.state.cursorLine)
             var newCursorLine = this.state.cursorLine - 1
-            this.setCursorPosition(newCursorLine, this.windowText.get(newCursorLine).length - 1)
+            this.setCursorPosition(newCursorLine, this.windowText.get(newCursorLine).length)
         }
         /* Append it to the row before */
         else if (this.state.cursorCol === 0 && this.state.cursorLine !== 0) {
@@ -105,7 +108,7 @@ class TextWindow extends Component {
             var lineLen = this.windowText.get(this.state.cursorLine - 1).length
             this.concat(this.windowText.get(this.state.cursorLine - 1), this.windowText.get(this.state.cursorLine))
             this.windowText.remove(this.state.cursorLine)
-            this.setCursorPosition(this.state.cursorLine - 1, lineLen - 1)
+            this.setCursorPosition(this.state.cursorLine - 1, lineLen)
         }
         else {
             this.windowText.get(this.state.cursorLine).remove(this.state.cursorCol - 1)
@@ -143,20 +146,21 @@ class TextWindow extends Component {
 
     deleteLine() {
         // stay at current cursorLine unless you were at the last one
-        if (this.state.cursorLine === this.getNumLines() - 1) {
+        if (this.state.cursorLine !== this.getNumLines() - 1) {
             this.windowText.remove(this.state.cursorLine)
             this.setCursorPosition(this.state.cursorLine - 1, 0) // set back to beginning of line
         }
         else {
             this.windowText.remove(this.state.cursorLine) // no need to go down a line
+            this.setCursorPosition(this.state.cursorLine, 0)
         }
     }
 
-    defaultAddNewline() {
+    defaultAddNewline(event) {
         // if not at the end or beginning, split the line in two
         if (this.state.cursorCol !== 0 && this.state.cursorCol !== this.getLineLen() - 1) {
             // split the array at position
-            var newArr = this.windowText.get(this.state.cursorLine).splice(this.state.cursorCol)
+            var newArr = this.windowText.get(this.state.cursorLine).splice(0, this.state.cursorCol)
             this.windowText.insert(this.state.cursorLine, newArr)
             this.setCursorPosition(this.state.cursorLine + 1, 0)
         }
@@ -168,6 +172,9 @@ class TextWindow extends Component {
     }
 
     switchToAppend() {
+      var newCol = this.state.cursorCol
+      if (newCol + 1 < this.windowText.get(this.state.cursorLine).length)
+          this.setState({cursorCol: newCol + 1})
       this.switchFromNormalToInsert()
     }
 
@@ -186,7 +193,7 @@ class TextWindow extends Component {
             editorMode: INSERT_MODE
         }
         // outside of state for efficient updating
-        this.windowText = new AvlTreeList([new AvlTreeList()]) // create 2d list of avl list
+        this.windowText = new AvlTreeList() // create 2d list of avl list
         this.modeList = [INSERT_MODE, NORMAL_MODE]
 
         this.keyComboManager = this.props.keyComboManager // get the key manager from the parent
@@ -239,8 +246,9 @@ class TextWindow extends Component {
         this.forceUpdate() // render to improve efficiency by not having the array in state
     }
     insertTextAfterPosition(line, col, elem) {
-        console.log(elem)
-        console.log(this.windowText.get(line).length)
+        if (this.getNumLines() === 0) {
+            this.windowText.push(new AvlTreeList())
+        }
         if (col >= this.getLineLen()) this.windowText.get(line).push(elem)
         else {
             this.windowText.get(line).insert(col, elem) // insert the element right after the current pos
@@ -252,11 +260,9 @@ class TextWindow extends Component {
             this.setState({cursorPosition: 0})
         }
         this.setState({shouldDrawCursor: true})
-        console.log("Focus received")
     }
     onBlurHandler(event) {
         this.setState({shouldDrawCursor: false})
-        console.log("Focus unreceived")
     }
     setCursorPosition(row, col) {
         this.keyComboManager.setCursorPos(row + 1, col + 1)
@@ -279,11 +285,11 @@ class TextWindow extends Component {
         if (this.state.editorMode === INSERT_MODE) {
             if (this.canDisplayChar(event) && event.shiftKey) {
                 this.insertTextAfterPosition(this.state.cursorLine, this.state.cursorCol, new Char({}, event.key, false))
-                this.setCursorPosition(this.state.cursorPosition + 1);
+                this.setCursorPosition(this.state.cursorLine, this.state.cursorCol + 1);
             }
             else if (this.canDisplayChar(event)){
                 this.insertTextAfterPosition(this.state.cursorLine, this.state.cursorCol, new Char({}, event.key, false))
-                this.setCursorPosition(this.state.cursorPosition + 1);
+                this.setCursorPosition(this.state.cursorLine, this.state.cursorCol + 1);
             }
         }
         this.keyComboManager.keyPressed(event)
@@ -311,21 +317,21 @@ class TextWindow extends Component {
         }
         // convert the avl 2d list to a 1d array using iterators to have linear time
         var elems = []
-        var rowIdx
-        var colIter, colIdx
+        var rowIdx = 0
+        var colIdx = 0
         for (rowIdx = 0; rowIdx < this.windowText.length; rowIdx++) {
-            for (colIter = this.windowText.get(rowIdx).iterator(), colIdx = 0; colIter.hasNext(); colIter.next(), colIdx++) {
-                if (!colIter.special) {
+            if (this.state.shouldDrawCursor && this.state.cursorCol === 0 && this.state.cursorLine === rowIdx) elems.push(this.createCursor(null, "|"))
+            colIdx = 0
+            this.windowText.get(rowIdx).forEach(function(elem) {
+                if (!elem.special) {
                     // idx functions as a key to get react to be quiet
-                    elems.push(this.createCharSpan(colIter.randomId, colIter.style, colIter.text))
+                    elems.push(this.createCharSpan(elem.randomId, elem.style, elem.text))
                 }
-                else if (colIter.special && colIter.text === "Enter") {
-                    elems.push(<br key={colIter.randomId}></br>)
-                }
-                if (this.state.shouldDrawCursor && this.state.cursorLine === rowIdx && this.state.cursorCol === colIdx) {
-                    elems.push(this.createCursor(null, "|"))
-                }
-            }
+                if (this.state.shouldDrawCursor && this.state.cursorCol - 1 === colIdx && this.state.cursorLine === rowIdx) elems.push(this.createCursor(null, "|"))
+                colIdx++
+            }, this)
+
+            elems.push(<br></br>)
         }
 
         return <div key={this.divRandomId} id="editorWindow" onKeyDown={event => this.onKeyDownHandler(event)} onKeyUp={event => this.onKeyUpHandler(event)} tabIndex={-1} onBlur={event => this.onBlurHandler(event)} onFocus={event => this.onFocusHandler(event)} style={style}>
