@@ -118,8 +118,13 @@ class TextWindow extends Component {
 
     defaultDeleteRight(event) {
         // check if out of bounds
-        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length - 1) return
+        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length) return
+        // concat the line before to your current line and remove the one before
         return // TODO later
+
+        //if (this.state.cursorCol === this.windowText.get(this.state.cursorLine).length) {
+
+        //}
     }
 
     setMode(newMode) {
@@ -158,6 +163,7 @@ class TextWindow extends Component {
     }
 
     defaultAddNewline(event) {
+        var avllist = new AvlTreeList()
         // if not at the end or beginning, split the line in two
         if (this.state.cursorCol !== 0 && this.state.cursorCol !== this.getLineLen()) {
             // split the array at position
@@ -168,19 +174,23 @@ class TextWindow extends Component {
         /* cursor is at beginning, so move the entire line up */
         else if (this.state.cursorCol === 0) {
             // insert a new list
-            this.windowText.insert(this.state.cursorLine, new AvlTreeList())
+            avllist.randomId = this.generateRandomId()
+            this.windowText.insert(this.state.cursorLine, avllist)
             this.setCursorPosition(this.state.cursorLine + 1, 0) // technically it is at a undefined position since 0 doesnt exist
         }
         /* cursor is at end of line so add a line above it and increment linenum*/
         else {
-            this.windowText.insert(this.state.cursorLine + 1, new AvlTreeList())
+            avllist.randomId = this.generateRandomId()
+            this.windowText.insert(this.state.cursorLine + 1, avllist)
             this.setCursorPosition(this.state.cursorLine + 1, 0)
         }
     }
     // add a newline below current line, then switch to insert mode
     addNewlineInsert(event) {
         // insert a newline right after, and switch to it
-        this.windowText.insert(this.state.cursorLine + 1, new AvlTreeList())
+        var avllist = new AvlTreeList()
+        avllist.randomId = this.generateRandomId()
+        this.windowText.insert(this.state.cursorLine + 1, avllist)
         this.setCursorPosition(this.state.cursorLine + 1, 0)
         this.switchFromNormalToInsert()
     }
@@ -188,6 +198,12 @@ class TextWindow extends Component {
       if (this.state.cursorCol <= this.windowText.get(this.state.cursorLine).length)
           this.setCursorPosition(this.state.cursorLine, this.state.cursorCol + 1)
       this.switchFromNormalToInsert()
+    }
+
+    // For react element. Generate a gigantic random number so
+    // there is almost no propability for collisions
+    generateRandomId() {
+        return Math.random(0, 1000000000)
     }
 
     constructor (props) {
@@ -208,14 +224,15 @@ class TextWindow extends Component {
         }
         // outside of state for efficient updating
         this.windowText = new AvlTreeList() // create 2d list of avl list
+        this.windowText.randomId = this.generateRandomId()
         this.modeList = [INSERT_MODE, NORMAL_MODE]
 
         this.keyComboManager = this.props.keyComboManager // get the key manager from the parent
         // signal the manager to set the start value
         this.keyComboManager.setCursorPos(1, 1)
         // id's for elements to get react to be quiet with its warning about key prop
-        this.cursorRandomId = Math.random(0, 1000000000)
-        this.mainDivRandomId = Math.random(0, 1000000000)
+        this.cursorRandomId = this.generateRandomId()
+        this.mainDivRandomId = this.generateRandomId()
         // Register the macros with their respective modes.
         // MUST BIND THE FUNCTION TO THIS SO THAT IT CAN BE CALLED CORRECTLY OUTSIDE
         this.keyComboManager.registerKeyCombo(["ArrowLeft"], this.modeList, this.defaultMoveLeft.bind(this))
@@ -255,6 +272,8 @@ class TextWindow extends Component {
         this.keyComboManager.registerKeyCombo(["o"], [NORMAL_MODE], this.addNewlineInsert.bind(this))
     }
 
+    // undo and redo operations. Maybe differentially save the state? This way we eat up much less memory than copying the entire thing
+
     createCharSpan(key, style, text) {
         return <span className="text" key={key} style={style}>{text}</span>
     }
@@ -266,7 +285,9 @@ class TextWindow extends Component {
     }
     insertTextAfterPosition(line, col, elem) {
         if (this.getNumLines() === 0) {
-            this.windowText.push(new AvlTreeList())
+            var avllist = new AvlTreeList()
+            avllist.randomId = this.generateRandomId()
+            this.windowText.push(avllist)
         }
         if (col >= this.getLineLen()) this.windowText.get(line).push(elem)
         else {
@@ -330,7 +351,7 @@ class TextWindow extends Component {
 
     // a method to mark the starting and ending lines that are displayed on screen
     // simply returns an array of the line to start from
-    scrollRange() {
+    scrollRangeVertical() {
         // number of lines that can be displayed on screen vertically
         var numLines = 8 // this.state.width / this.state.lineHeight
         // needs no scrolling
@@ -340,6 +361,12 @@ class TextWindow extends Component {
         // display numLines / 2 above and below cursor position
         return Math.ceil(numOff)
     }
+    // TODO Make it so that we can scroll horizontally and the text doesnt go off the screen
+    // Cursor should always remain in the middle
+    scrollRangeHorizontal() {
+
+    }
+
     render() {
         const style = {
             width: this.state.width,
@@ -352,7 +379,7 @@ class TextWindow extends Component {
         var colIdx = 0
         // how many lines to display
         var displayLineNum = this.state.cursorLine + 8 > this.windowText.length ? this.windowText.length : this.state.cursorLine + 8
-        for (rowIdx = this.scrollRange(); rowIdx < displayLineNum; rowIdx++) {
+        for (rowIdx = this.scrollRangeVertical(); rowIdx < displayLineNum; rowIdx++) {
             if (this.state.shouldDrawCursor && this.state.cursorCol === 0 && this.state.cursorLine === rowIdx) elems.push(this.createCursor(null, "|"))
             colIdx = 0
             this.windowText.get(rowIdx).forEach(function(elem) {
@@ -363,8 +390,8 @@ class TextWindow extends Component {
                 if (this.state.shouldDrawCursor && this.state.cursorCol - 1 === colIdx && this.state.cursorLine === rowIdx) elems.push(this.createCursor(null, "|"))
                 colIdx++
             }, this)
-
-            elems.push(<br></br>)
+            console.log("My id", this.windowText.get(rowIdx).randomId)
+            elems.push(<br key={this.windowText.get(rowIdx).randomId}></br>)
         }
 
         return <div key={this.divRandomId} id="editorWindow" onKeyDown={event => this.onKeyDownHandler(event)} onKeyUp={event => this.onKeyUpHandler(event)} tabIndex={-1} onBlur={event => this.onBlurHandler(event)} onFocus={event => this.onFocusHandler(event)} style={style}>
