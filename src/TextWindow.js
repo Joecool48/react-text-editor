@@ -135,7 +135,7 @@ class TextWindow extends Component {
     }
 
     skipToBeginning() {
-        this.setCursorPosition(this.state.cursorLine, 0)
+        this.setCursorPosition(0, 0)
     }
     skipToEnd() {
         this.setCursorPosition(this.getNumLines() - 1, this.windowText.get(this.getNumLines() - 1).length)
@@ -146,7 +146,8 @@ class TextWindow extends Component {
 
     deleteLine() {
         // stay at current cursorLine unless you were at the last one
-        if (this.state.cursorLine !== this.getNumLines() - 1) {
+        if(this.windowText.length === 0) return
+        if (this.state.cursorLine !== 0) {
             this.windowText.remove(this.state.cursorLine)
             this.setCursorPosition(this.state.cursorLine - 1, 0) // set back to beginning of line
         }
