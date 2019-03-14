@@ -138,10 +138,10 @@ class TextWindow extends Component {
         this.setCursorPosition(this.state.cursorLine, 0)
     }
     skipToEnd() {
-        this.setCursorPosition(this.getNumLines(), this.windowText.get(this.getNumLines() - 1).length - 1)
+        this.setCursorPosition(this.getNumLines() - 1, this.windowText.get(this.getNumLines() - 1).length)
     }
     skipToEndOfLine() {
-        this.setCursorPosition(this.state.cursorLine, this.getLineLen() - 1)
+        this.setCursorPosition(this.state.cursorLine, this.getLineLen())
     }
 
     deleteLine() {
@@ -203,7 +203,8 @@ class TextWindow extends Component {
         this.modeList = [INSERT_MODE, NORMAL_MODE]
 
         this.keyComboManager = this.props.keyComboManager // get the key manager from the parent
-
+        // signal the manager to set the start value
+        this.keyComboManager.setCursorPos(1, 1)
         // id's for elements to get react to be quiet with its warning about key prop
         this.cursorRandomId = Math.random(0, 1000000000)
         this.mainDivRandomId = Math.random(0, 1000000000)
