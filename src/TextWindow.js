@@ -239,10 +239,13 @@ class TextWindow extends Component {
         this.forceUpdate() // render to improve efficiency by not having the array in state
     }
     insertTextAfterPosition(line, col, elem) {
+        console.log(elem)
+        console.log(this.windowText.get(line).length)
         if (col >= this.getLineLen()) this.windowText.get(line).push(elem)
         else {
-            this.windowtext.get(line).insert(col, elem) // insert the element right after the current pos
+            this.windowText.get(line).insert(col, elem) // insert the element right after the current pos
         }
+        this.forceUpdate()
     }
     onFocusHandler(event) {
         if (this.state.cursorPosition === null) {
