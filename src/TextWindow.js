@@ -98,6 +98,8 @@ class TextWindow extends Component {
         // if nothing in the line, then delete the line
         if (this.getLineLen() === 0) {
             this.windowText.remove(this.state.cursorLine)
+            // removing at cursorLine should have us insert at cursorLine - 1 a []
+            this.addUndoableState()
             var newCursorLine = this.state.cursorLine - 1
             this.setCursorPosition(newCursorLine, this.windowText.get(newCursorLine).length)
         }
@@ -221,6 +223,10 @@ class TextWindow extends Component {
             cursorMode: this.props.cursorMode,
             editorMode: INSERT_MODE
         }
+
+        // the undo stack that stores previous commands to undo when called upon
+        this.undoStack = []
+
         // outside of state for efficient updating
         this.windowText = new AvlTreeList() // create 2d list of avl list
         this.windowText.randomId = this.generateRandomId()
