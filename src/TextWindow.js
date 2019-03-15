@@ -69,7 +69,6 @@ class TextWindow extends Component {
     defaultMoveRight(event) {
         if (this.state.editorMode !== INSERT_MODE && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length - 1) return
         if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length) return
-        console.log("AFTER", this.state.cursorCol)
         var row = this.state.cursorLine
         var col = this.state.cursorCol
         if (col === this.windowText.get(this.state.cursorLine).length) {
@@ -377,20 +376,20 @@ class TextWindow extends Component {
         var elems = []
         var rowIdx = 0
         var colIdx = 0
+        var func = function(elem) {
+            if (!elem.special) {
+                // idx functions as a key to get react to be quiet
+                elems.push(this.createCharSpan(elem.randomId, elem.style, elem.text))
+            }
+            if (this.state.shouldDrawCursor && this.state.cursorCol - 1 === colIdx && this.state.cursorLine === rowIdx) elems.push(this.createCursor(null, "|"))
+            colIdx++
+        }
         // how many lines to display
         var displayLineNum = this.state.cursorLine + 8 > this.windowText.length ? this.windowText.length : this.state.cursorLine + 8
         for (rowIdx = this.scrollRangeVertical(); rowIdx < displayLineNum; rowIdx++) {
             if (this.state.shouldDrawCursor && this.state.cursorCol === 0 && this.state.cursorLine === rowIdx) elems.push(this.createCursor(null, "|"))
             colIdx = 0
-            this.windowText.get(rowIdx).forEach(function(elem) {
-                if (!elem.special) {
-                    // idx functions as a key to get react to be quiet
-                    elems.push(this.createCharSpan(elem.randomId, elem.style, elem.text))
-                }
-                if (this.state.shouldDrawCursor && this.state.cursorCol - 1 === colIdx && this.state.cursorLine === rowIdx) elems.push(this.createCursor(null, "|"))
-                colIdx++
-            }, this)
-            console.log("My id", this.windowText.get(rowIdx).randomId)
+            this.windowText.get(rowIdx).forEach(func, this)
             elems.push(<br key={this.windowText.get(rowIdx).randomId}></br>)
         }
 

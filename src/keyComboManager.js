@@ -98,7 +98,6 @@ class KeyComboManager {
     }
 
     setMode(mode) {
-        console.log("Set the mode")
         this.mode = mode
         this.stateChangeCallback(mode, this.line, this.col)
     }

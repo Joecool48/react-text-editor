@@ -11,7 +11,6 @@ const MAX_KEY_COMBO_LENGTH = 10
 class App extends Component {
 
   setParentState(newMode, newLine, newCol) {
-      console.log("Called newmode")
       this.setState({mode: newMode, line: newLine, col: newCol})
   }
 

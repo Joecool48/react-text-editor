@@ -33,12 +33,12 @@ function AvlTreeList() {
 	// Invariant: The value is always an AvlTreeListNode object, never null.
 	this.root = AvlTreeListNode.EMPTY_LEAF;
 
-	if (arguments.length == 1) {
+	if (arguments.length === 1) {
 		var arr = arguments[0];
 		for (var i = 0; i < arr.length; i++)
 			this.push(arr[i]);
-	} else if (arguments.length != 0)
-		throw "Illegal argument";
+	} else if (arguments.length !== 0)
+		throw Object.assign(new Error("Illegal argument"));
 }
 
 
@@ -56,7 +56,7 @@ Object.defineProperty(AvlTreeList.prototype, "length",
 // Types: index is integer, result is any JavaScript type.
 AvlTreeList.prototype.get = function(index) {
 	if (index < 0 || index >= this.length)
-		throw "Index out of bounds";
+		throw Object.assign(new Error("Index out of bounds"));
 	return this.root.getNodeAt(index).value;
 };
 
@@ -66,7 +66,7 @@ AvlTreeList.prototype.get = function(index) {
 // Types: index is integer, value is any JavaScript type, result is void.
 AvlTreeList.prototype.set = function(index, val) {
 	if (index < 0 || index >= this.length)
-		throw "Index out of bounds";
+		throw Object.assign(new Error("Index out of bounds"));
 	this.root.getNodeAt(index).value = val;
 };
 
@@ -84,7 +84,7 @@ AvlTreeList.prototype.push = function(val) {
 // Types: index is integer, val is any JavaScript type, result is void.
 AvlTreeList.prototype.insert = function(index, val) {
 	if (index < 0 || index > this.length)  // Different constraint than the other methods
-		throw "Index out of bounds";
+		throw Object.assign(new Error("Index out of bounds"));
 	this.root = this.root.insertAt(index, val);
 };
 
@@ -94,7 +94,7 @@ AvlTreeList.prototype.insert = function(index, val) {
 // Types: index is integer, result is void.
 AvlTreeList.prototype.remove = function(index) {
 	if (index < 0 || index >= this.length)
-		throw "Index out of bounds";
+		throw Object.assign(new Error("Index out of bounds"));
 	this.root = this.root.removeAt(index);
 };
 
@@ -103,8 +103,8 @@ AvlTreeList.prototype.remove = function(index) {
 // For example: [a,b,c] -> shift() returns a -> [b,c].
 // Types: result is any JavaScript type.
 AvlTreeList.prototype.shift = function() {
-	if (this.length == 0)
-		throw "List is empty";
+	if (this.length === 0)
+		throw Object.assign(new Error("List is empty"));
 	var result = this.get(0);
 	this.remove(0);
 	return result;
@@ -116,8 +116,8 @@ AvlTreeList.prototype.shift = function() {
 // Types: result is any JavaScript type.
 AvlTreeList.prototype.pop = function() {
 	var len = this.length;
-	if (len == 0)
-		throw "List is empty";
+	if (len === 0)
+		throw Object.assign(new Error("List is empty"));
 	var result = this.get(len - 1);
 	this.remove(len - 1);
 	return result;
@@ -158,7 +158,7 @@ AvlTreeList.prototype.slice = function(start, end) {
 // Types: start is integer, count is integer, remaining arguments are any JavaScript type, result is AvlTreeList.
 AvlTreeList.prototype.splice = function(start, count) {
 	if (arguments.length < 2)
-		throw "Illegal arguments";
+		throw Object.assign(new Error("Illegal arguments"));
 	// Clamp start index and count
 	if (start > this.length)
 		start = this.length;
@@ -170,12 +170,13 @@ AvlTreeList.prototype.splice = function(start, count) {
 	count = Math.min(this.length - start, count);
 
 	var result = new AvlTreeList();
-	for (var i = 0; i < count; i++) {
+  var i;
+	for (i = 0; i < count; i++) {
 		var val = this.get(start);
 		result.push(val);
 		this.remove(start);
 	}
-	for (var i = 2; i < arguments.length; i++)
+	for (i = 2; i < arguments.length; i++)
 		this.insert(start + i - 2, arguments[i]);
 	return result;
 };
@@ -243,14 +244,14 @@ function AvlTreeListNode() {
 	 * - left  : The root node of the left subtree.
 	 * - right : The root node of the right subtree.
 	 */
-	if (arguments.length == 0) {
+	if (arguments.length === 0) {
 		// For the singleton empty leaf node
 		this.value  = null;
 		this.height = 0;
 		this.size   = 0;
 		this.left   = null;
 		this.right  = null;
-	} else if (arguments.length == 1) {
+	} else if (arguments.length === 1) {
 		// Normal non-leaf nodes
 		this.value  = arguments[0];
 		this.height = 1;
@@ -258,7 +259,7 @@ function AvlTreeListNode() {
 		this.left   = AvlTreeListNode.EMPTY_LEAF;
 		this.right  = AvlTreeListNode.EMPTY_LEAF;
 	} else
-		throw "Assertion error";
+		throw Object.assign(new Error("Assertion error"));
 }
 
 
@@ -268,7 +269,7 @@ AvlTreeListNode.EMPTY_LEAF = new AvlTreeListNode();
 
 AvlTreeListNode.prototype.getNodeAt = function(index) {
 	if (index < 0 || index >= this.size)
-		throw "Assertion error";
+		throw Object.assign(new Error("Assertion error"));
 	// Automatically implies this != EMPTY_LEAF, because EMPTY_LEAF.size == 0
 	var leftSize = this.left.size;
 	if (index < leftSize)
@@ -282,7 +283,7 @@ AvlTreeListNode.prototype.getNodeAt = function(index) {
 
 AvlTreeListNode.prototype.insertAt = function(index, obj) {
 	if (index < 0 || index > this.size)
-		throw "Assertion error";
+		throw Object.assign(new Error("Assertion error"));
 	if (this === AvlTreeListNode.EMPTY_LEAF)  // Automatically implies index == 0, because EMPTY_LEAF.size == 0
 		return new AvlTreeListNode(obj);
 	var leftSize = this.left.size;
@@ -297,7 +298,7 @@ AvlTreeListNode.prototype.insertAt = function(index, obj) {
 
 AvlTreeListNode.prototype.removeAt = function(index) {
 	if (index < 0 || index >= this.size)
-		throw "Assertion error";
+		throw Object.assign(new Error("Assertion error"));
 	// Automatically implies this != EMPTY_LEAF, because EMPTY_LEAF.size == 0
 	var empty = AvlTreeListNode.EMPTY_LEAF;
 	var leftSize = this.left.size;
@@ -314,7 +315,7 @@ AvlTreeListNode.prototype.removeAt = function(index) {
 	else {
 		// Find successor node. (Using the predecessor is valid too.)
 		var temp = this.right;
-		while (temp.left != AvlTreeListNode.EMPTY_LEAF)
+		while (temp.left !== AvlTreeListNode.EMPTY_LEAF)
 			temp = temp.left;
 		this.value = temp.value;  // Replace value by successor
 		this.right = this.right.removeAt(0);  // Remove successor node
@@ -328,23 +329,23 @@ AvlTreeListNode.prototype.removeAt = function(index) {
 AvlTreeListNode.prototype.balance = function() {
 	var bal = this.getBalance();
 	if (Math.abs(bal) > 2)
-		throw "Assertion error";
+		throw Object.assign(new Error("Assertion error"));
 	var result = this;
-	if (bal == -2) {
+	if (bal === -2) {
 		if (Math.abs(this.left.getBalance()) > 1)
-			throw "Assertion error";
-		if (this.left.getBalance() == +1)
+      throw Object.assign(new Error("Assertion error"));
+		if (this.left.getBalance() === +1)
 			this.left = this.left.rotateLeft();
 		result = this.rotateRight();
-	} else if (bal == +2) {
+	} else if (bal === +2) {
 		if (Math.abs(this.right.getBalance()) > 1)
-			throw "Assertion error";
-		if (this.right.getBalance() == -1)
+      throw Object.assign(new Error("Assertion error"));
+		if (this.right.getBalance() === -1)
 			this.right = this.right.rotateRight();
 		result = this.rotateLeft();
 	}
 	if (Math.abs(result.getBalance()) > 1)
-		throw "Assertion error";
+    throw Object.assign(new Error("Assertion error"));
 	return result;
 };
 
@@ -358,7 +359,7 @@ AvlTreeListNode.prototype.balance = function() {
  */
 AvlTreeListNode.prototype.rotateLeft = function() {
 	if (this.right === AvlTreeListNode.EMPTY_LEAF)
-		throw "Assertion error";
+    throw Object.assign(new Error("Assertion error"));
 	var root = this.right;
 	this.right = root.left;
 	root.left = this;
@@ -377,7 +378,7 @@ AvlTreeListNode.prototype.rotateLeft = function() {
  */
 AvlTreeListNode.prototype.rotateRight = function() {
 	if (this.left === AvlTreeListNode.EMPTY_LEAF)
-		throw "Assertion error";
+    throw Object.assign(new Error("Assertion error"));
 	var root = this.left;
 	this.left = root.right;
 	root.right = this;
@@ -391,15 +392,15 @@ AvlTreeListNode.prototype.rotateRight = function() {
 // Assumes the left and right subtrees have the correct values computed already.
 AvlTreeListNode.prototype.recalculate = function() {
 	if (this === AvlTreeListNode.EMPTY_LEAF)
-		throw "Assertion error";
+    throw Object.assign(new Error("Assertion error"));
 	if (this.left.height < 0 || this.right.height < 0)
-		throw "Assertion error";
+    throw Object.assign(new Error("Assertion error"));
 	if (this.left.size < 0 || this.right.size < 0)
-		throw "Assertion error";
+    throw Object.assign(new Error("Assertion error"));
 	this.height = Math.max(this.left.height, this.right.height) + 1;
 	this.size = this.left.size + this.right.size + 1;
 	if (this.height < 0 || this.size < 0)
-		throw "Assertion error";
+    throw Object.assign(new Error("Assertion error"));
 };
 
 
@@ -412,15 +413,15 @@ AvlTreeListNode.prototype.getBalance = function() {
 AvlTreeListNode.prototype.checkStructure = function() {
 	if (this === AvlTreeListNode.EMPTY_LEAF)
 		return;
-	this.left .checkStructure();
+	this.left.checkStructure();
 	this.right.checkStructure();
 
-	if (this.height != Math.max(this.left.height, this.right.height) + 1)
-		throw "AVL tree structure violated: Incorrect cached height";
-	if (this.size != this.left.size + this.right.size + 1)
-		throw "AVL tree structure violated: Incorrect cached size";
+	if (this.height !== Math.max(this.left.height, this.right.height) + 1)
+		throw Object.assign(new Error("AVL tree structure violated: Incorrect cached height"));
+	if (this.size !== this.left.size + this.right.size + 1)
+		throw Object.assign(new Error("AVL tree structure violated: Incorrect cached size"));
 	if (Math.abs(this.getBalance()) > 1)
-		throw "AVL tree structure violated: Height imbalance";
+		throw Object.assign(new Error("AVL tree structure violated: Height imbalance"));
 };
 
 
@@ -430,7 +431,7 @@ AvlTreeListNode.prototype.checkStructure = function() {
 function AvlTreeListIterator(root) {
 	this.stack = [];
 	var node = root;
-	while (node != AvlTreeListNode.EMPTY_LEAF) {
+	while (node !== AvlTreeListNode.EMPTY_LEAF) {
 		this.stack.push(node);
 		node = node.left;
 	}
@@ -444,12 +445,12 @@ AvlTreeListIterator.prototype.hasNext = function() {
 
 AvlTreeListIterator.prototype.next = function() {
 	if (!this.hasNext())
-		throw "No next element";
+		throw Object.assign(new Error("No next element"));
 
 	var node = this.stack.pop();
 	var result = node.value;
 	node = node.right;
-	while (node != AvlTreeListNode.EMPTY_LEAF) {
+	while (node !== AvlTreeListNode.EMPTY_LEAF) {
 		this.stack.push(node);
 		node = node.left;
 	}
