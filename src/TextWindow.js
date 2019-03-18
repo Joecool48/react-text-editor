@@ -492,6 +492,10 @@ class TextWindow extends Component {
         this.keyComboManager.keyPressed(event)
         
         this.handleHandler(event)
+        this.setState((prevState) => {
+            this.keyComboManager.setCursorPos(prevState.cursorLine + 1, prevState.cursorCol + 1)
+            return {}
+        })
 
     }
     handleHandler(event) {
