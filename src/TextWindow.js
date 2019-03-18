@@ -54,7 +54,7 @@ class TextWindow extends Component {
             state.addLineSectionToState(lines, textArr, starts, starts + textArr.length, action)
             this.undoredo.addRecentState(state)
         }
-        else Object.assign(new Error("Cannott identify addDeletedTextToState arguments"))
+        else Object.assign(new Error("Cannot identify addDeletedTextToState arguments"))
     }
 
     getNumLines() {
@@ -200,7 +200,11 @@ class TextWindow extends Component {
         this.keyComboManager.setMode(newMode)
     }
     switchFromInsertToNormal() {
-        if (this.state.cursorCol > 0) this.setCursorPosition(this.state.cursorLine, this.state.cursorCol - 1)
+        this.setState((prevState) => {
+            if (prevState.cursorCol > 0) return {
+                cursorCol: prevState.cursorCol - 1
+            }
+        })
         this.setMode(NORMAL_MODE)
     }
     switchFromNormalToInsert() {
@@ -433,9 +437,6 @@ class TextWindow extends Component {
         return true
     }
     onFocusHandler(event) {
-        if (this.state.cursorPosition === null) {
-            this.setState({cursorPosition: 0})
-        }
         this.setState({shouldDrawCursor: true})
     }
     onBlurHandler(event) {
@@ -455,18 +456,33 @@ class TextWindow extends Component {
 
           return valid
     }
+
+    
+    cloneEvent(e) {
+        if (e===undefined || e===null) return undefined;
+        function ClonedEvent() {};  
+        let clone=new ClonedEvent();
+        for (let p in e) {
+            let d=Object.getOwnPropertyDescriptor(e, p);
+            if (d && (d.get || d.set)) Object.defineProperty(clone, p, d); else clone[p] = e[p];
+        }
+        Object.setPrototypeOf(clone, e);
+        return clone;
+    }
+
     onKeyDownHandler(event) {
         if (this.state.editorMode === INSERT_MODE) {
+            var evt = this.cloneEvent(event)
             this.setState ((prevState) => {
-                if (this.canDisplayChar(event) && event.shiftKey) {
-                    this.insertTextAfterPosition(prevState.cursorLine, prevState.cursorCol, new Char({}, event.key, false))
+                if (this.canDisplayChar(evt) && evt.shiftKey) {
+                    this.insertTextAfterPosition(prevState.cursorLine, prevState.cursorCol, new Char({}, evt.key, false))
                     return {
                         cursorLine: prevState.cursorLine,
                         cursorCol: prevState.cursorCol + 1
                     }
                 }
-                else if (this.canDisplayChar(event)){
-                    this.insertTextAfterPosition(prevState.cursorLine, prevState.cursorCol, new Char({}, event.key, false))
+                else if (this.canDisplayChar(evt)){
+                    this.insertTextAfterPosition(prevState.cursorLine, prevState.cursorCol, new Char({}, evt.key, false))
                     return {
                         cursorCol: prevState.cursorCol + 1
                     }
@@ -487,7 +503,7 @@ class TextWindow extends Component {
             var ret_val = true
             for (var i = 0; i < times && ret_val; i++) {
                 ret_val = handlerObject.handler(event)
-                console.log(ret_val)
+                console.log(i)
             }
         }
     }
