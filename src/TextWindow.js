@@ -1,4 +1,6 @@
 import AvlTreeList from "./avltreelist"
+import StoreState from "./undoredo"
+import UndoRedo from "./undoredo"
 import React, { Component } from 'react';
 
 //import KeyComboManager from './keyComboManager'
@@ -37,13 +39,31 @@ const INSERT_MODE = "Insert"
 const NORMAL_MODE = "Normal"
 
 class TextWindow extends Component {
+    // functions for undoing and redoing actions
+    addTextToState(lines, starts, textArr, action) {
+        if ((Array.isArray(lines) && Array.isArray(starts) && Array.isArray(textArr[0]))) {
+            if (lines.length !== starts.length || starts.length !== textArr.length || lines.length !== textArr.length) throw Object.assign(new Error("Arrays must be the same length"))
+            var state = new StoreState()
+            for (var i = 0; i < lines.length; i++) {
+                state.addLineSectionToState(lines[i], textArr[i], starts[i], starts[i] + textArr[i].length, action) 
+            }
+            this.undoredo.addRecentState(state)
+        }
+        else if (!Array.isArray(lines) && !Array.isArray(starts) && !Array.isArray(textArr[0])) {
+            var state = new StoreState()
+            state.addLineSectionToState(lines, textArr, starts, starts + textArr.length, action)
+            this.undoredo.addRecentState(state)
+        }
+        else Object.assign(new Error("Cannott identify addDeletedTextToState arguments"))
+    }
+
     getNumLines() {
         return this.windowText.length
     }
     getLineLen() {
         return this.windowText.get(this.state.cursorLine).length
     }
-
+    
     // concats the second list to the end of the first
     concat(arr1, arr2) {
         // iterate through arr2 and push to arr1
@@ -55,77 +75,124 @@ class TextWindow extends Component {
     }
 
     defaultMoveLeft(event) {
-        if (this.state.editorMode !== INSERT_MODE && this.state.cursorCol === 0) return
-        if (this.state.cursorCol === 0 && this.state.cursorLine === 0) return
-        var row = this.state.cursorLine
-        var col = this.state.cursorCol
-        if (col === 0) {
-            row -= 1
-            col = this.windowText.get(row).length // col is 0 indexed
-        }
-        else col--
-        this.setCursorPosition(row, col)
+        var ret_val = false
+        this.setState((prevState) => {
+             if (prevState.editorMode !== INSERT_MODE && prevState.cursorCol === 0) return {} 
+             if (prevState.cursorCol === 0 && prevState.cursorLine === 0) return {}
+             ret_val = true         
+             var row = prevState.cursorLine
+             var col = prevState.cursorCol
+             if (col === 0) {
+                 row -= 1
+                 col = this.windowText.get(row).length // col is 0 indexed
+             }
+             else col--
+            return {
+                cursorLine: row,
+                cursorCol: col
+            }
+        })
+        return ret_val 
     }
+
     defaultMoveRight(event) {
-        if (this.state.editorMode !== INSERT_MODE && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length - 1) return
-        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length) return
-        var row = this.state.cursorLine
-        var col = this.state.cursorCol
-        if (col === this.windowText.get(this.state.cursorLine).length) {
-            row += 1
-            col = 0
-        }
-        else col++
-        this.setCursorPosition(row, col)
+        var ret_val = false
+        this.setState((prevState) => {
+            if (prevState.editorMode !== INSERT_MODE && prevState.cursorCol === this.windowText.get(prevState.cursorLine).length - 1) return {} 
+            if (prevState.cursorLine === this.windowText.length - 1 && prevState.cursorCol === this.windowText.get(prevState.cursorLine).length) return {} 
+            ret_val = true
+            var row = prevState.cursorLine
+            var col = prevState.cursorCol
+            if (col === this.windowText.get(row).length) {
+                row += 1
+                col = 0
+            }
+            else col++
+            return {
+                cursorLine: row, 
+                cursorCol: col
+            }
+        })
+        return ret_val 
     }
+
     defaultMoveUp(event) {
-        if (this.state.cursorLine === 0) return // cant move up anymore obviously
-        // the new position above is calculated based off of the min of the current pos, and the next line
-        var newColIdx = min(this.state.cursorCol, this.windowText.get(this.state.cursorLine - 1).length)
-        this.setCursorPosition(this.state.cursorLine - 1, newColIdx)
+        var ret_val = false
+        this.setState((prevState) => {
+            if (prevState.cursorLine === 0) return {}// cant move up anymore obviously
+            // the new position above is calculated based off of the min of the current pos, and the next line
+            ret_val = true
+            var newColIdx = min(prevState.cursorCol, this.windowText.get(prevState.cursorLine - 1).length)
+            return {
+                cursorLine: prevState.cursorLine - 1,
+                cursorCol: newColIdx
+            }
+        })
+        return ret_val 
     }
     defaultMoveDown(event) {
-        // check out of bounds
-        if (this.state.cursorLine === this.windowText.length - 1) return
-        // same routine for calculating below idx as above
-        var newColIdx = min(this.state.cursorCol, this.windowText.get(this.state.cursorLine +  1).length)
-        this.setCursorPosition(this.state.cursorLine + 1, newColIdx)
+        var ret_val = false
+        this.setState((prevState) => {
+            // check out of bounds
+            if (prevState.cursorLine === this.windowText.length - 1) return {} 
+            // same routine for calculating below idx as above
+            ret_val = true
+            var newColIdx = min(prevState.cursorCol, this.windowText.get(prevState.cursorLine +  1).length)
+            return {
+                cursorLine: prevState.cursorLine + 1,
+                cursorCol: newColIdx
+            }
+        })
+        return ret_val
     }
     // Deletes an element one to the left of the cursor position.
     // If there are no more left on the current line it goes to the line below to delete
     defaultDeleteLeft(event) {
-        if (this.state.cursorLine === 0 && this.state.cursorCol === 0) return
-        // if nothing in the line, then delete the line
-        if (this.getLineLen() === 0) {
-            this.windowText.remove(this.state.cursorLine)
-            // removing at cursorLine should have us insert at cursorLine - 1 a []
-            this.addUndoableState()
-            var newCursorLine = this.state.cursorLine - 1
-            this.setCursorPosition(newCursorLine, this.windowText.get(newCursorLine).length)
-        }
-        /* Append it to the row before */
-        else if (this.state.cursorCol === 0 && this.state.cursorLine !== 0) {
-            // save line length before concatenating
-            var lineLen = this.windowText.get(this.state.cursorLine - 1).length
-            this.concat(this.windowText.get(this.state.cursorLine - 1), this.windowText.get(this.state.cursorLine))
-            this.windowText.remove(this.state.cursorLine)
-            this.setCursorPosition(this.state.cursorLine - 1, lineLen)
-        }
-        else {
-            this.windowText.get(this.state.cursorLine).remove(this.state.cursorCol - 1)
-            this.setCursorPosition(this.state.cursorLine, this.state.cursorCol - 1)
-        }
+        var ret_val = false
+        this.setState((prevState) => {    
+            if (prevState.cursorLine === 0 && prevState.cursorCol === 0) return {} 
+            // if nothing in the line, then delete the line
+            ret_val = true
+            if (this.getLineLen() === 0) {
+                this.windowText.remove(prevState.cursorLine)
+                // removing at cursorLine should have us insert at cursorLine - 1 a []
+                var newCursorLine = prevState.cursorLine - 1
+                return {
+                    cursorLine: newCursorLine,
+                    cursorCol: this.windowText.get(newCursorLine).length
+                }
+            }
+            /* Append it to the row before */
+            else if (this.state.cursorCol === 0 && this.state.cursorLine !== 0) {
+                // save line length before concatenating
+                var lineLen = this.windowText.get(prevState.cursorLine - 1).length
+                this.concat(this.windowText.get(prevState.cursorLine - 1), this.windowText.get(prevState.cursorLine))
+                this.windowText.remove(prevState.cursorLine)
+                return {
+                    cursorLine: prevState.cursorLine - 1,
+                    cursorCol: lineLen
+                }
+            }
+            else {
+                this.windowText.get(prevState.cursorLine).remove(prevState.cursorCol - 1)
+                return {
+                    cursorCol: prevState.cursorCol - 1
+                }
+            } 
+        })
+        return ret_val
     }
 
     defaultDeleteRight(event) {
         // check if out of bounds
-        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length) return
+        if (this.state.cursorLine === this.windowText.length - 1 && this.state.cursorCol === this.windowText.get(this.state.cursorLine).length) return false
         // concat the line before to your current line and remove the one before
-        return // TODO later
+        // TODO later
 
         //if (this.state.cursorCol === this.windowText.get(this.state.cursorLine).length) {
 
         //}
+        return true
     }
 
     setMode(newMode) {
@@ -141,64 +208,129 @@ class TextWindow extends Component {
     }
 
     skipToBeginning() {
-        this.setCursorPosition(0, 0)
+        var ret_val = false
+        this.setState((prevState) => {
+            if (prevState.cursorCol === this.windowText.get(prevState.cursorLine).length) return {}
+            ret_val = true
+            return {
+                cursorLine: 0,
+                cursorCol: 0
+            }
+        })
+        return ret_val
     }
     skipToEnd() {
-        this.setCursorPosition(this.getNumLines() - 1, this.windowText.get(this.getNumLines() - 1).length)
+        var ret_val = false
+        this.setState((prevState) => {
+            if (prevState.cursorLine >= this.windowText.length - 1 && prevState.cursorCol >= this.windowText.get(prevState.cursorLine).length) return {}
+
+            ret_val = true
+            return {
+                cursorLine: this.windowText.length - 1,
+                cursorCol: this.windowText.get(this.windowText.length - 1).length
+            }
+        })
+        return ret_val
     }
+
     skipToEndOfLine() {
-        this.setCursorPosition(this.state.cursorLine, this.getLineLen())
+        var ret_val = false
+        this.setState((prevState) => {
+            if (prevState.cursorCol >= this.windowText.get(prevState.cursorLine).length) return {}
+            ret_val = true
+            return {
+                cursorCol: this.windowText.get(prevState.cursorLine).length
+            }
+        })
+        return ret_val
     }
 
     deleteLine() {
         // stay at current cursorLine unless you were at the last one
-        if(this.windowText.length === 0) return
-        if (this.state.cursorLine !== 0) {
-            this.windowText.remove(this.state.cursorLine)
-            this.setCursorPosition(this.state.cursorLine - 1, 0) // set back to beginning of line
-        }
-        else {
-            this.windowText.remove(this.state.cursorLine) // no need to go down a line
-            this.setCursorPosition(this.state.cursorLine, 0)
-        }
+        var ret_val = false
+        this.setState((prevState) => {
+            if (this.windowText.length === 0) return {}
+            ret_val = true
+            if (prevState.cursorLine !== 0) {
+                this.windowText.remove(prevState.cursorLine)
+                return {
+                    cursorLine: prevState.cursorLine - 1,
+                    cursorCol: 0
+                }
+            }
+            else {
+                this.windowText.remove(prevState.cursorLine)
+                return {
+                    cursorCol: 0
+                }
+            }
+        })
+        return ret_val 
     }
 
     defaultAddNewline(event) {
-        var avllist = new AvlTreeList()
-        // if not at the end or beginning, split the line in two
-        if (this.state.cursorCol !== 0 && this.state.cursorCol !== this.getLineLen()) {
-            // split the array at position
-            var newArr = this.windowText.get(this.state.cursorLine).splice(0, this.state.cursorCol)
-            this.windowText.insert(this.state.cursorLine, newArr)
-            this.setCursorPosition(this.state.cursorLine + 1, 0)
-        }
-        /* cursor is at beginning, so move the entire line up */
-        else if (this.state.cursorCol === 0) {
-            // insert a new list
-            avllist.randomId = this.generateRandomId()
-            this.windowText.insert(this.state.cursorLine, avllist)
-            this.setCursorPosition(this.state.cursorLine + 1, 0) // technically it is at a undefined position since 0 doesnt exist
-        }
-        /* cursor is at end of line so add a line above it and increment linenum*/
-        else {
-            avllist.randomId = this.generateRandomId()
-            this.windowText.insert(this.state.cursorLine + 1, avllist)
-            this.setCursorPosition(this.state.cursorLine + 1, 0)
-        }
+        var ret_val = false
+        this.setState((prevState) => {
+            var avllist = new AvlTreeList()
+            ret_val = true
+            // if not at the end or beginning, split the line in two
+            if (prevState.cursorCol !== 0 && prevState.cursorCol !== this.windowText.get(prevState.cursorLine).length) {
+                // split the array at position
+                var newArr = this.windowText.get(prevState.cursorLine).splice(0, prevState.cursorCol)
+                this.windowText.insert(prevState.cursorLine, newArr)
+                return {
+                    cursorLine: prevState.cursorLine + 1,
+                    cursorCol: 0
+                }
+            }
+            /* cursor is at beginning, so move the entire line up */
+            else if (prevState.cursorCol === 0) {
+                // insert a new list
+                avllist.randomId = this.generateRandomId()
+                this.windowText.insert(prevState.cursorLine, avllist)
+                return {
+                    cursorLine: prevState.cursorLine + 1,
+                    cursorCol: 0
+                }
+            }
+            /* cursor is at end of line so add a line above it and increment linenum*/
+            else {
+                avllist.randomId = this.generateRandomId()
+                this.windowText.insert(prevState.cursorLine + 1, avllist)
+                return {
+                    cursorLine: prevState.cursorLine + 1,
+                    cursorCol: 0
+                }
+            }
+        })
+        return ret_val
     }
     // add a newline below current line, then switch to insert mode
     addNewlineInsert(event) {
         // insert a newline right after, and switch to it
         var avllist = new AvlTreeList()
         avllist.randomId = this.generateRandomId()
-        this.windowText.insert(this.state.cursorLine + 1, avllist)
-        this.setCursorPosition(this.state.cursorLine + 1, 0)
+        this.setState((prevState) => {
+            this.windowText.insert(prevState.cursorLine + 1, avllist)
+            return {
+                cursorLine: prevState.cursorLine + 1,
+                cursorCol: 0
+            }
+        })
         this.switchFromNormalToInsert()
+        return true
     }
     switchToAppend(event) {
-      if (this.state.cursorCol <= this.windowText.get(this.state.cursorLine).length)
-          this.setCursorPosition(this.state.cursorLine, this.state.cursorCol + 1)
-      this.switchFromNormalToInsert()
+        this.setState((prevState) => {
+            if (prevState.cursorCol <= this.windowText.get(prevState.cursorLine).length) {
+                return {
+                    cursorLine: prevState.cursorLine,
+                    cursorCol: prevState.cursorCol + 1
+                }
+            }
+            return {}
+        })
+        this.switchFromNormalToInsert()
     }
 
     // For react element. Generate a gigantic random number so
@@ -224,8 +356,8 @@ class TextWindow extends Component {
             editorMode: INSERT_MODE
         }
 
-        // the undo stack that stores previous commands to undo when called upon
-        this.undoStack = []
+        // a simple object for storing undo states
+        this.undoredo = new UndoRedo()
 
         // outside of state for efficient updating
         this.windowText = new AvlTreeList() // create 2d list of avl list
@@ -298,7 +430,7 @@ class TextWindow extends Component {
         else {
             this.windowText.get(line).insert(col, elem) // insert the element right after the current pos
         }
-        this.forceUpdate()
+        return true
     }
     onFocusHandler(event) {
         if (this.state.cursorPosition === null) {
@@ -309,11 +441,8 @@ class TextWindow extends Component {
     onBlurHandler(event) {
         this.setState({shouldDrawCursor: false})
     }
-    setCursorPosition(row, col) {
-        this.keyComboManager.setCursorPos(row + 1, col + 1)
-        this.setState({cursorLine : row, cursorCol: col})
-    }
 
+    
     canDisplayChar(event) {
         var keycode = event.keyCode
         var valid =
@@ -328,24 +457,40 @@ class TextWindow extends Component {
     }
     onKeyDownHandler(event) {
         if (this.state.editorMode === INSERT_MODE) {
-            if (this.canDisplayChar(event) && event.shiftKey) {
-                this.insertTextAfterPosition(this.state.cursorLine, this.state.cursorCol, new Char({}, event.key, false))
-                this.setCursorPosition(this.state.cursorLine, this.state.cursorCol + 1);
-            }
-            else if (this.canDisplayChar(event)){
-                this.insertTextAfterPosition(this.state.cursorLine, this.state.cursorCol, new Char({}, event.key, false))
-                this.setCursorPosition(this.state.cursorLine, this.state.cursorCol + 1);
-            }
+            this.setState ((prevState) => {
+                if (this.canDisplayChar(event) && event.shiftKey) {
+                    this.insertTextAfterPosition(prevState.cursorLine, prevState.cursorCol, new Char({}, event.key, false))
+                    return {
+                        cursorLine: prevState.cursorLine,
+                        cursorCol: prevState.cursorCol + 1
+                    }
+                }
+                else if (this.canDisplayChar(event)){
+                    this.insertTextAfterPosition(prevState.cursorLine, prevState.cursorCol, new Char({}, event.key, false))
+                    return {
+                        cursorCol: prevState.cursorCol + 1
+                    }
+                }
+            })
         }
         this.keyComboManager.keyPressed(event)
+        
+        this.handleHandler(event)
 
-        var handler = this.keyComboManager.getHandlerForMode(this.state.editorMode)
+    }
+    handleHandler(event) {
+         var handlerObject = this.keyComboManager.getHandlerForMode(this.state.editorMode)
         this.setMode(this.state.editorMode)
 
-        if (handler !== undefined)
-            handler(event)
+        if (handlerObject !== undefined) {
+            var times = handlerObject.multiplier
+            var ret_val = true
+            for (var i = 0; i < times && ret_val; i++) {
+                ret_val = handlerObject.handler(event)
+                console.log(ret_val)
+            }
+        }
     }
-
     onKeyUpHandler(event) {
         this.keyComboManager.keyUnpressed(event)
     }
@@ -370,6 +515,10 @@ class TextWindow extends Component {
     // Cursor should always remain in the middle
     scrollRangeHorizontal() {
 
+    }
+    
+    shouldComponentUpdate() {
+        return true
     }
 
     render() {

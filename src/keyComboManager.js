@@ -16,6 +16,9 @@ class KeyComboManager {
         this.registeredHandlers = new Map()
 
         this.mode = START_MODE
+        
+        // array of numbers preceding a macro
+        this.numbers = []
 
         // create the array for combos. array index 0 has the first key pressed,
         // and index 1 has 2 keys, etc. Resets after it reaches its max and the
@@ -83,15 +86,44 @@ class KeyComboManager {
             this.stateChangeCallback = stateChangeCallback
         }
     }
-
+    
+    convertArrayToNumber(arr) {
+        console.log(arr)
+        var num = 0
+        var multiplier = 1
+        for (var i = arr.length - 1; i >= 0; i--) {
+            num += parseInt(arr[i]) * multiplier
+            multiplier *= 10
+        }
+        return num
+    }
+    clearKeyCombo() {
+        for (var i = 0; i < this.maxKeyCombo; i++) {
+            this.keyComboArray[i] = []
+        }
+    }
     // returns a matching combo satisfied for a given mode
     getHandlerForMode() {
         for (var i = 0; i < this.keyComboArray.length; i++) {
             var mapVal = this.hashKeyCombo(this.keyComboArray[i])
             // if it exists, then return the function handler
-            if (this.registeredHandlers.has(this.mode) && this.registeredHandlers.get(this.mode).has(mapVal)) {
-                this.flushCommandBuffers = true
-                return this.registeredHandlers.get(this.mode).get(mapVal)
+            if (this.registeredHandlers.has(this.mode) && this.registeredHandlers.get(this.mode).has(mapVal)) {     
+
+                var num = 1
+                // repeat only works in non-insert modes
+                if (this.numbers.length !== 0 && this.mode !== "Insert") {
+                    num = this.convertArrayToNumber(this.numbers)
+                }
+                this.numbers = []
+
+                this.clearKeyCombo()
+                console.log("Repeated: ", mapVal, num, "times") 
+//                return this.registeredHandlers.get(this.mode).get(mapVal) 
+                return {
+                    handler: this.registeredHandlers.get(this.mode).get(mapVal),
+                    multiplier: num
+                }
+
             }
         }
         return undefined
@@ -148,8 +180,16 @@ class KeyComboManager {
     getRealKey(event) {
         return event.key
     }
-
+    
+    isNumber(event) {
+        return event.key >= 0 && event.key <= 9
+    }
     keyPressed(event) {
+        // get the number of times to complete the action
+        if (this.isNumber(event)) {
+            this.numbers.push(event.key)
+            return
+        }
         if (!this.isRegularKey(event))
             this.specialKeysHeld.add(event.which)
         for (var i = 0; i < this.maxKeyCombo; i++) {
@@ -159,7 +199,7 @@ class KeyComboManager {
                 continue
             }
             else if (this.isRegularKey(event)) {
-                if (this.keyComboArray[i].length === i + 1|| this.flushCommandBuffers) {
+                if (this.keyComboArray[i].length === i + 1 || this.flushCommandBuffers) {
                     this.keyComboArray[i] = [] // wipe the array so that we can restart with the combo
                 }
                 this.keyComboArray[i].push(this.getRealKey(event)) // add the scancode
